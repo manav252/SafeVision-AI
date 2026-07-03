@@ -1,123 +1,139 @@
 # SafeVision AI
 
-SafeVision AI is a portfolio-ready web demo for an AI-powered industrial safety intelligence platform. It shows how CCTV analytics can be fused with plant context such as gas readings, work permits, equipment status, shift notes, restricted zones and checklist completion to help safety teams detect compound risk earlier.
+SafeVision AI is an industrial safety intelligence platform that combines CCTV analytics with plant context such as gas readings, work permits, equipment status, shift handover notes, restricted zones, and compliance checklist state.
 
-## Project Idea
+The repository includes two demo surfaces:
 
-Factories often have multiple safety systems, but they usually operate separately:
+- **Website demo:** React + Vite landing page for Vercel deployment.
+- **Live operations dashboard:** Streamlit app with video upload, zone drawing, YOLO/OpenCV detection, risk fusion, AI Safety Advisor, heatmap, evidence capture, and incident logs.
 
-- CCTV detects people but does not understand gas or permit context.
-- Gas sensors trigger threshold alarms but do not know worker location.
-- Work permits define activity but may not react to live process conditions.
-- Compliance checklists record safety controls but are not connected to live CCTV events.
+## What It Solves
 
-SafeVision AI presents a unified command center where these signals are combined into real-time risk intelligence.
+Industrial sites often run CCTV, gas detectors, permit systems, and compliance workflows separately. SafeVision AI fuses those signals so a safety officer can see compound risk before it becomes an incident.
 
-## Features
-
-- Landing page for the SafeVision AI product story
-- Demo dashboard with industrial command-center UI
-- Plant Camera Manager with upload and sample feed selection
-- Restricted zone drawing mock interface
-- Plant signal controls for PPE, gas, permit, equipment and checklist status
-- Dynamic risk engine with Low / Medium / High / Critical severity
-- Live detection mock panel
-- Recent Safety Events
-- Explain This Alert card with reasoning, contributing factors and recommended actions
-- AI Safety Advisor
-- Risk Heatmap
-- Architecture modal
-- Responsive SaaS-style design
-
-## Demo Flow
-
-1. Open the landing page.
-2. Click **View Demo Dashboard**.
-3. Select a sample CCTV scenario or upload a video name.
-4. Toggle plant signal inputs such as PPE violation, restricted-zone entry, gas level and permit status.
-5. Click **Start Monitoring**.
-6. Show how the risk score, events, explanation card, AI Safety Advisor and heatmap update together.
-7. Open the **Architecture** modal to explain the system pipeline.
-
-## Architecture
+Example:
 
 ```text
-Multi-camera CCTV feeds
-        ↓
-Vision Processing
-        ↓
-Computer Vision Engine
-        ↓
-Safety Fusion Engine
-        ↓
-Safety Rule Engine
-        ↓
-Risk Engine
-        ↓
-AI Safety Advisor
-        ↓
-Dashboard + Heatmap + Reports
+Worker near restricted zone
++ PPE warning
++ elevated gas
++ active maintenance permit
+= high-priority supervisor action
 ```
 
-Core principle:
+## Core Features
 
-```text
-Vision Intelligence + Operational Context + Safety Rules = Real-Time Risk Intelligence
-```
-
-## Screenshots
-
-Add screenshots in the `screenshots/` folder before submitting:
-
-- `screenshots/landing-page.png`
-- `screenshots/demo-dashboard.png`
-- `screenshots/risk-heatmap.png`
-- `screenshots/architecture-modal.png`
+- Multi-camera CCTV manager for uploaded plant feeds.
+- YOLOv8/OpenCV based person and PPE detection.
+- Custom PPE model support at `models/ppe_yolov8.pt`.
+- Fallback PPE estimation when a custom model is unavailable.
+- Freehand and preset restricted-zone monitoring.
+- Plant signal inputs for gas, permits, equipment, shift handover, compliance, and emergency state.
+- Weighted risk score from 0 to 100.
+- AI Safety Advisor with reasoned recommendations.
+- Explain-this-alert workflow for demo explainability.
+- Plant Risk Heatmap showing zone-level risk.
+- Evidence screenshots and CSV logs.
+- FastAPI backend scaffold with PostgreSQL schema for enterprise extension.
+- Docker and GitHub Actions support.
 
 ## Tech Stack
 
-- React
-- Vite
-- Framer Motion
-- Lucide React icons
-- CSS responsive design
-- Mock data for portfolio/demo use
+**Frontend website:** React, Vite, Tailwind CSS, Framer Motion  
+**Live dashboard:** Streamlit, streamlit-drawable-canvas, OpenCV, Ultralytics YOLOv8, NumPy, Pandas, Pillow  
+**Backend scaffold:** FastAPI, SQLAlchemy, PostgreSQL, JWT auth  
+**Deployment:** Vercel for the website, Docker/Streamlit for the live dashboard
 
-The repository also contains a production-oriented FastAPI/PostgreSQL backend scaffold for future expansion.
+## Repository Structure
 
-## Run Locally
+```text
+SafeVision-AI/
+├── src/                       # React/Vite landing page
+├── app.py                     # Original Streamlit dashboard
+├── detector.py                # YOLO loading, inference, PPE fallback logic
+├── risk_engine.py             # Risk score and safety event generation
+├── utils.py                   # Drawing, geometry, evidence, CSV utilities
+├── backend/                   # FastAPI enterprise API scaffold
+├── database/schema.sql        # PostgreSQL schema
+├── docs/                      # Architecture, API, deployment docs
+├── assets/                    # Architecture diagram and landing assets
+├── models/                    # YOLO model files
+├── sample_videos/             # Demo CCTV footage
+├── requirements.txt           # Streamlit/Python dependencies
+├── package.json               # React/Vite dependencies
+├── Dockerfile
+├── Dockerfile.streamlit
+├── docker-compose.yml
+└── vercel.json
+```
+
+## Run Website Locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite.
+Open the Vite URL shown in the terminal.
 
-## Build
+## Run Live Dashboard Locally
 
 ```bash
-npm run build
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+streamlit run app.py
 ```
 
-## Deploy on Vercel
+## Deploy Website To Vercel
 
-1. Push this repository to GitHub.
-2. Import the repo in Vercel.
-3. Use these settings:
-   - Framework: Vite
-   - Build command: `npm run build`
-   - Output directory: `dist`
-4. Deploy.
+This repo is already configured for Vercel.
+
+- Framework preset: `Vite`
+- Build command: `npm run build`
+- Output directory: `dist`
+
+Import the GitHub repo into Vercel and deploy. The landing page can link users into the live dashboard demo flow.
+
+## Docker Demo
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Open:
+
+- Streamlit dashboard: `http://localhost:8501`
+- FastAPI backend: `http://localhost:8000`
+- API docs: `http://localhost:8000/docs`
+
+## Demo Flow
+
+1. Open the SafeVision AI landing page.
+2. Click **Launch Live Dashboard**.
+3. Upload one or more CCTV clips or use the industrial demo feed.
+4. Draw restricted zones for plant areas.
+5. Select plant context such as elevated gas and active permit.
+6. Start monitoring.
+7. Show live detection, risk score, recent safety events, AI Safety Advisor, heatmap, and incident report.
+
+## Production Notes
+
+- Replace fallback PPE estimation with a site-trained model at `models/ppe_yolov8.pt`.
+- Connect gas readings to PLC, SCADA, MQTT, OPC-UA, or historian APIs.
+- Store evidence in object storage for production.
+- Use managed PostgreSQL and secure JWT configuration.
+- Add real alert channels such as email, SMS, WhatsApp, Teams, or plant siren integration.
 
 ## Resume Bullets
 
-- Built SafeVision AI, a React-based industrial safety intelligence demo combining CCTV analytics, gas readings, permit context, equipment status and compliance checklist signals.
-- Designed a rule-based risk engine that classifies plant safety states into Low, Medium, High and Critical risk levels.
-- Created AI-style alert explanations and recommended actions to improve incident response transparency.
-- Developed a responsive SaaS dashboard with camera manager, detection panel, event feed, risk heatmap and architecture modal.
-- Prepared the project for Vercel deployment with Vite build tooling and production-ready documentation.
+- Built an industrial safety intelligence platform combining YOLOv8 computer vision with gas, permit, equipment, shift, and compliance context.
+- Implemented restricted-zone monitoring, PPE violation detection, weighted risk scoring, and explainable safety recommendations.
+- Designed a Vercel-ready React landing page and a Streamlit operations dashboard with evidence capture and CSV incident logs.
+- Added FastAPI/PostgreSQL enterprise scaffolding with authentication, alert/event APIs, Docker support, and deployment documentation.
 
-## Disclaimer
+## License
 
-This is a hackathon and portfolio demo. CCTV, IoT and permit integrations are mocked for presentation, while the architecture is structured for future real integrations.
+MIT License. See [LICENSE](LICENSE).

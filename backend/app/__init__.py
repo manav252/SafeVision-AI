@@ -1,0 +1,2 @@
+"""SafeVision AI backend package."""
+

@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: safevision
+      POSTGRES_USER: safevision
+      POSTGRES_PASSWORD: safevision
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://safevision:safevision@postgres:5432/safevision
+      SECRET_KEY: local-dev-secret-change-me
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./outputs:/app/outputs
+      - ./models:/app/models
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+
