@@ -182,15 +182,71 @@ def open_capture(source):
     return cv2.VideoCapture(str(source))
 
 
-def load_first_frame(video_source):
-    cap = open_capture(video_source)
-    if not cap.isOpened():
-        return None
-    ok, frame = cap.read()
-    cap.release()
-    if not ok or frame is None:
-        return None
+def create_factory_preview_frame(width: int = 960, height: int = 540) -> np.ndarray:
+    frame = np.full((height, width, 3), (238, 242, 247), dtype=np.uint8)
+    cv2.rectangle(frame, (0, 360), (width, height), (82, 91, 98), -1)
+    cv2.rectangle(frame, (56, 80), (905, 345), (64, 76, 88), 4)
+    cv2.rectangle(frame, (88, 110), (250, 326), (42, 96, 120), -1)
+    cv2.rectangle(frame, (690, 110), (860, 326), (46, 105, 130), -1)
+    for x in range(320, 700, 90):
+        cv2.line(frame, (x, 82), (x - 55, 346), (112, 120, 126), 7)
+    cv2.putText(frame, "INDUSTRIAL CCTV - FACTORY DEMO", (62, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.82, (30, 37, 48), 2)
+
+    cv2.rectangle(frame, (580, 306), (875, 512), (0, 0, 210), 4)
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (580, 306), (875, 512), (0, 0, 210), -1)
+    frame = cv2.addWeighted(overlay, 0.18, frame, 0.82, 0)
+    cv2.putText(frame, "RESTRICTED ZONE", (604, 296), cv2.FONT_HERSHEY_SIMPLEX, 0.74, (0, 0, 235), 2)
+
+    worker_x, worker_y = 660, 270
+    cv2.circle(frame, (worker_x + 35, worker_y - 38), 20, (54, 217, 235), -1)
+    cv2.rectangle(frame, (worker_x + 10, worker_y - 18), (worker_x + 60, worker_y + 82), (28, 214, 225), -1)
+    cv2.line(frame, (worker_x + 16, worker_y), (worker_x + 56, worker_y + 78), (255, 126, 0), 5)
+    cv2.line(frame, (worker_x + 56, worker_y), (worker_x + 16, worker_y + 78), (255, 126, 0), 5)
+    cv2.line(frame, (worker_x + 10, worker_y + 10), (worker_x - 18, worker_y + 60), (38, 42, 46), 8)
+    cv2.line(frame, (worker_x + 60, worker_y + 10), (worker_x + 90, worker_y + 60), (38, 42, 46), 8)
+    cv2.line(frame, (worker_x + 23, worker_y + 82), (worker_x + 13, worker_y + 145), (38, 42, 46), 9)
+    cv2.line(frame, (worker_x + 49, worker_y + 82), (worker_x + 62, worker_y + 145), (38, 42, 46), 9)
+
+    cv2.rectangle(frame, (646, 30), (918, 82), (26, 29, 34), -1)
+    cv2.putText(frame, "CH4 14% LEL | PERMIT ACTIVE", (662, 64), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (80, 220, 255), 2)
     return frame
+
+
+def _read_first_frame(video_source):
+    cap = open_capture(video_source)
+    try:
+        if not cap.isOpened():
+            return None
+        ok, frame = cap.read()
+        if not ok or frame is None:
+            return None
+        return frame
+    finally:
+        cap.release()
+
+
+def load_first_frame(video_source, allow_demo_fallback: bool = False, allow_placeholder: bool = False):
+    candidates = [video_source]
+    if allow_demo_fallback:
+        candidates.append(FACTORY_DEMO_VIDEO)
+
+    seen = set()
+    for candidate in candidates:
+        key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            frame = _read_first_frame(candidate)
+        except Exception:
+            frame = None
+        if frame is not None:
+            return frame
+
+    if allow_placeholder:
+        return create_factory_preview_frame()
+    return None
 
 
 def save_uploaded_video(uploaded_file) -> Path:
@@ -1092,7 +1148,8 @@ def build_live_source(source_type: str, camera_url: str):
     if source_type == "Demo Camera":
         return 0
     if source_type == "Industrial CCTV":
-        return 0
+        ensure_factory_demo_video()
+        return FACTORY_DEMO_VIDEO
     return camera_url.strip()
 
 
@@ -4753,7 +4810,7 @@ def render_dashboard() -> None:
             st.caption("Camera cards persist zone setup, alerts, and monitoring state while you switch feeds.")
         else:
             video_source = build_live_source("Industrial CCTV", "")
-            st.caption("Uses the live camera feed for real-time monitoring.")
+            st.caption("Uses the bundled industrial CCTV feed for cloud-safe monitoring.")
         st.subheader("Plant Signal Inputs")
         st.markdown(
             "<div class='preset-note'>External gas, permit, shift, equipment, and compliance signals used for risk correlation.</div>",
@@ -4843,7 +4900,7 @@ def render_dashboard() -> None:
         file_signature = "|".join(f"{item.name}:{item.size}" for item in uploaded_files)
         source_signature = f"plant:{file_signature or 'none'}"
     else:
-        source_signature = "industrial:camera0"
+        source_signature = f"industrial:{FACTORY_DEMO_VIDEO.name}"
     if st.session_state.source_signature != source_signature:
         reset_processing_state()
         st.session_state.video_path = None
@@ -4915,7 +4972,11 @@ def render_dashboard() -> None:
             return
         video_source = Path(st.session_state.video_path)
 
-    first_frame = load_first_frame(video_source)
+    first_frame = load_first_frame(
+        video_source,
+        allow_demo_fallback=input_mode == "Industrial CCTV",
+        allow_placeholder=input_mode == "Industrial CCTV",
+    )
     if first_frame is None:
         if input_mode == "Recorded CCTV":
             st.markdown(
@@ -4924,7 +4985,7 @@ def render_dashboard() -> None:
             )
         else:
             st.markdown(
-                """<div class="empty-state"><strong>Live Camera Unavailable</strong></div>""",
+                """<div class="empty-state"><strong>Industrial CCTV Feed Unavailable</strong></div>""",
                 unsafe_allow_html=True,
             )
         return
