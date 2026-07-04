@@ -2,6 +2,8 @@
 
 SafeVision AI is an industrial safety intelligence platform that combines CCTV analytics with plant context such as gas readings, work permits, equipment status, shift handover notes, restricted zones, and compliance checklist state.
 
+**Live Demo:** [safevision-ai-manav25.streamlit.app](https://safevision-ai-manav25.streamlit.app)
+
 The repository includes two demo surfaces:
 
 - **Website demo:** React + Vite landing page for Vercel deployment.
@@ -49,7 +51,7 @@ Worker near restricted zone
 ```text
 SafeVision-AI/
 ├── src/                       # React/Vite landing page
-├── app.py                     # Original Streamlit dashboard
+├── app.py                     # Streamlit operations dashboard
 ├── detector.py                # YOLO loading, inference, PPE fallback logic
 ├── risk_engine.py             # Risk score and safety event generation
 ├── utils.py                   # Drawing, geometry, evidence, CSV utilities
