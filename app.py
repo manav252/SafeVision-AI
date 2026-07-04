@@ -39,7 +39,7 @@ SAMPLE_VIDEOS_DIR = BASE_DIR / "sample_videos"
 FACTORY_DEMO_VIDEO = SAMPLE_VIDEOS_DIR / "factory_demonstration.mp4"
 ASSETS_DIR = BASE_DIR / "assets"
 ARCHITECTURE_DIAGRAM_PATH = ASSETS_DIR / "SafeVision_AI_Architecture.png"
-LANDING_DEMO_VIDEO_PATH = ASSETS_DIR / "safevision_demo_video.mov"
+LANDING_DEMO_VIDEO_PATH = ASSETS_DIR / "safevision_demo_video.mp4"
 
 
 st.set_page_config(
