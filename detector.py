@@ -13,8 +13,13 @@ os.environ.setdefault("YOLO_CONFIG_DIR", str(Path(__file__).resolve().parent / "
 
 import cv2
 import numpy as np
-import torch
-from ultralytics import YOLO
+
+try:
+    import torch
+    from ultralytics import YOLO
+except Exception:
+    torch = None
+    YOLO = None
 
 
 @dataclass
@@ -39,16 +44,19 @@ class SafetyDetector:
         self.custom_model_path = self.models_dir / "ppe_yolov8.pt"
         self.fallback_model_path = self.models_dir / "yolov8n.pt"
         self.device = self._select_device()
-        self.fallback_mode = not self.custom_model_path.exists()
-        self.person_model = YOLO(str(self.fallback_model_path))
+        self.model_available = YOLO is not None
+        self.fallback_mode = not self.custom_model_path.exists() or not self.model_available
+        self.person_model = YOLO(str(self.fallback_model_path)) if self.model_available else None
         self.ppe_model = None if self.fallback_mode else YOLO(str(self.custom_model_path))
 
     def _select_device(self) -> str:
-        if torch.backends.mps.is_available():
+        if torch is not None and torch.backends.mps.is_available():
             return "mps"
         return "cpu"
 
     def detect(self, frame: np.ndarray) -> list[Detection]:
+        if self.person_model is None:
+            return []
         resized, scale = self._resize_for_inference(frame, width=640)
         person_results = self.person_model.predict(
             source=resized,
