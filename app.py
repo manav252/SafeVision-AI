@@ -5281,7 +5281,7 @@ def render_dashboard() -> None:
                 canvas_width,
             )
             canvas_result = None
-        elif input_mode == "Recorded CCTV":
+        elif input_mode == "Recorded CCTV" and preset != "drawn":
             preview_zone = get_saved_zone(
                 st.session_state.zone_map_target,
                 default_zone,
@@ -5294,7 +5294,7 @@ def render_dashboard() -> None:
                 canvas_width,
             )
             canvas_result = None
-            st.caption("Recorded CCTV uses a cloud-safe frame preview. Choose a preset if you want to move the zone before saving.")
+            st.caption("Preset preview is active. Choose Draw Free Zone to sketch a custom boundary.")
         else:
             canvas_result = st_canvas(
                 fill_color="rgba(239, 68, 68, 0.18)",
