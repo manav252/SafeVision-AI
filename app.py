@@ -5199,10 +5199,35 @@ def render_dashboard() -> None:
                 else:
                     invalidate_processed_preview()
                 st.session_state.zone_canvas_nonce += 1
-        if st.button("Draw Free Zone", type="primary" if active_preset == "drawn" else "secondary", use_container_width=True):
+        custom_zone_label = "Adjust Custom Zone" if input_mode == "Recorded CCTV" else "Draw Free Zone"
+        if st.button(custom_zone_label, type="primary" if active_preset == "drawn" else "secondary", use_container_width=True):
             st.session_state.zone_preset = "drawn"
             invalidate_processed_preview()
             st.session_state.zone_canvas_nonce += 1
+        if input_mode == "Recorded CCTV" and st.session_state.get("zone_preset", "drawn") == "drawn":
+            manual_target = st.session_state.get("zone_edit_target", st.session_state.zone_map_target)
+            manual_default = get_saved_zone(manual_target, default_zone, camera_index)
+            default_x, default_y, default_w, default_h = zone_percent_defaults(
+                manual_default,
+                first_frame.shape[1],
+                first_frame.shape[0],
+            )
+            slider_prefix = f"manual_zone_{camera_index}_{manual_target}"
+            st.markdown("**Custom zone editor**")
+            x_pct = st.slider("Left edge", 0, 90, default_x, 1, key=f"{slider_prefix}_x")
+            y_pct = st.slider("Top edge", 0, 90, default_y, 1, key=f"{slider_prefix}_y")
+            w_pct = st.slider("Zone width", 10, 95, default_w, 1, key=f"{slider_prefix}_w")
+            h_pct = st.slider("Zone height", 10, 95, default_h, 1, key=f"{slider_prefix}_h")
+            manual_zone = rectangle_from_percent_controls(
+                first_frame.shape[1],
+                first_frame.shape[0],
+                x_pct,
+                y_pct,
+                w_pct,
+                h_pct,
+            )
+            set_saved_zone(manual_target, manual_zone, camera_index)
+            st.caption("Adjust this custom boundary on the visible CCTV frame, then save the zone for this camera.")
 
         st.session_state.monitor_all_zones = st.checkbox(
             "Monitor all configured zones",
@@ -5257,31 +5282,6 @@ def render_dashboard() -> None:
                 remove_saved_zone(st.session_state.get("zone_edit_target", "Zone A"))
                 st.session_state.zone_canvas_nonce += 1
                 st.rerun()
-        if input_mode == "Recorded CCTV" and st.session_state.get("zone_preset", "drawn") == "drawn":
-            manual_target = st.session_state.get("zone_edit_target", st.session_state.zone_map_target)
-            manual_default = get_saved_zone(manual_target, default_zone, camera_index)
-            default_x, default_y, default_w, default_h = zone_percent_defaults(
-                manual_default,
-                first_frame.shape[1],
-                first_frame.shape[0],
-            )
-            slider_prefix = f"manual_zone_{camera_index}_{manual_target}"
-            st.markdown("**Custom zone editor**")
-            x_pct = st.slider("Left edge", 0, 90, default_x, 1, key=f"{slider_prefix}_x")
-            y_pct = st.slider("Top edge", 0, 90, default_y, 1, key=f"{slider_prefix}_y")
-            w_pct = st.slider("Zone width", 10, 95, default_w, 1, key=f"{slider_prefix}_w")
-            h_pct = st.slider("Zone height", 10, 95, default_h, 1, key=f"{slider_prefix}_h")
-            manual_zone = rectangle_from_percent_controls(
-                first_frame.shape[1],
-                first_frame.shape[0],
-                x_pct,
-                y_pct,
-                w_pct,
-                h_pct,
-            )
-            set_saved_zone(manual_target, manual_zone, camera_index)
-            st.caption("Adjust the custom boundary on the visible CCTV frame, then save the zone for this camera.")
-
     canvas_width = min(500, first_frame.shape[1])
     scale = canvas_width / first_frame.shape[1]
     canvas_height = int(first_frame.shape[0] * scale)
