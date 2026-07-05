@@ -621,10 +621,94 @@ def current_camera_events(camera: dict | None, gas_context: dict | None) -> list
     return rows
 
 
+def plant_context_events(gas_context: dict | None) -> list[dict]:
+    if not gas_context:
+        return []
+    now = gas_context.get("sensor_timestamp", app_time())
+    zone = st.session_state.get("zone_map_target", "Plant")
+    readings = gas_context.get("readings", {})
+    events = []
+    if gas_elevated(gas_context):
+        events.append(
+            {
+                "timestamp": now,
+                "camera": "Gas Sensor",
+                "zone": zone,
+                "severity": "HIGH",
+                "type": "gas",
+                "message": f"Gas level elevated: CH4 {readings.get('methane_lel', 0)}% LEL, CO {readings.get('co_ppm', 0)} ppm",
+            }
+        )
+    permit = gas_context.get("permit_type", "None")
+    if permit != "None":
+        severity = "HIGH" if gas_elevated(gas_context) else "MEDIUM"
+        events.append(
+            {
+                "timestamp": now,
+                "camera": "Permit Engine",
+                "zone": zone,
+                "severity": severity,
+                "type": "permit",
+                "message": f"{permit} active against current plant context",
+            }
+        )
+    equipment = gas_context.get("equipment_status", "Normal")
+    if equipment != "Normal":
+        events.append(
+            {
+                "timestamp": now,
+                "camera": "Equipment Monitor",
+                "zone": zone,
+                "severity": "MEDIUM",
+                "type": "equipment",
+                "message": equipment,
+            }
+        )
+    shift = gas_context.get("shift_phase", "Stable operations")
+    if shift != "Stable operations":
+        events.append(
+            {
+                "timestamp": now,
+                "camera": "Shift Handover",
+                "zone": zone,
+                "severity": "MEDIUM",
+                "type": "shift",
+                "message": shift,
+            }
+        )
+    audit = gas_context.get("audit_status", "Compliant")
+    if audit != "Compliant":
+        events.append(
+            {
+                "timestamp": now,
+                "camera": "Compliance Checklist",
+                "zone": zone,
+                "severity": "MEDIUM",
+                "type": "compliance",
+                "message": audit,
+            }
+        )
+    if gas_context.get("fire_detected"):
+        events.append(
+            {
+                "timestamp": now,
+                "camera": "Emergency System",
+                "zone": zone,
+                "severity": "HIGH",
+                "type": "emergency",
+                "message": "Fire detected: evacuation access override required",
+            }
+        )
+    return events
+
+
 def collect_plant_events(gas_context: dict | None) -> list[dict]:
     events = []
     for camera in st.session_state.get("plant_cameras", []):
         events.extend(st.session_state.get("camera_alerts", {}).get(camera.get("id"), []))
+    source_configured = bool(st.session_state.get("plant_cameras") or live_cctv_connected() or st.session_state.get("plant_monitoring_active"))
+    if source_configured:
+        events.extend(plant_context_events(gas_context))
     if live_cctv_connected():
         for row in st.session_state.get("violation_log", [])[-12:]:
             vtype = row.get("violation_type", "vision")
@@ -636,29 +720,6 @@ def collect_plant_events(gas_context: dict | None) -> list[dict]:
                     "severity": row.get("severity", "MEDIUM"),
                     "type": vtype,
                     "message": row.get("message", str(vtype).replace("_", " ").title()),
-                }
-            )
-        if gas_elevated(gas_context):
-            readings = gas_context.get("readings", {}) if gas_context else {}
-            events.append(
-                {
-                    "timestamp": gas_context.get("sensor_timestamp", app_time()) if gas_context else app_time(),
-                    "camera": "Industrial CCTV",
-                    "zone": st.session_state.get("zone_map_target", "Plant"),
-                    "severity": "HIGH",
-                    "type": "gas",
-                    "message": f"Gas level elevated: CH4 {readings.get('methane_lel', 0)}% LEL, CO {readings.get('co_ppm', 0)} ppm",
-                }
-            )
-        if gas_context and gas_context.get("permit_type", "None") != "None" and gas_elevated(gas_context):
-            events.append(
-                {
-                    "timestamp": app_time(),
-                    "camera": "Permit Engine",
-                    "zone": st.session_state.get("zone_map_target", "Plant"),
-                    "severity": "HIGH",
-                    "type": "permit",
-                    "message": f"{gas_context.get('permit_type')} overlaps with abnormal gas readings",
                 }
             )
     if not events and st.session_state.get("plant_monitoring_active"):
@@ -2570,6 +2631,16 @@ def latest_frame_events(violation_log: list[dict], gas_context: dict | None, ris
     if status != "Normal":
         severity = "critical" if status in {"Compound Risk", "Emergency Override"} or risk_score >= 80 else "warning"
         alerts.append({"time": now, "source": "Gas Sensor", "severity": severity, "event": status})
+    for event in plant_context_events(gas_context):
+        severity = "critical" if event.get("severity") == "HIGH" else "warning" if event.get("severity") == "MEDIUM" else "normal"
+        alerts.append(
+            {
+                "time": event.get("timestamp", now),
+                "source": event.get("camera", "Plant Context"),
+                "severity": severity,
+                "event": event.get("message", "Plant context changed"),
+            }
+        )
     recent_unique = []
     seen_types = set()
     repeat_counts = {}
@@ -5210,6 +5281,20 @@ def render_dashboard() -> None:
                 canvas_width,
             )
             canvas_result = None
+        elif input_mode == "Recorded CCTV":
+            preview_zone = get_saved_zone(
+                st.session_state.zone_map_target,
+                default_zone,
+                camera_index,
+            )
+            preview_defs = all_zone_defs if st.session_state.monitor_all_zones else [{"name": st.session_state.zone_map_target, "points": preview_zone}]
+            render_zone_preview_multi(
+                first_frame,
+                preview_defs,
+                canvas_width,
+            )
+            canvas_result = None
+            st.caption("Recorded CCTV uses a cloud-safe frame preview. Choose a preset if you want to move the zone before saving.")
         else:
             canvas_result = st_canvas(
                 fill_color="rgba(239, 68, 68, 0.18)",
@@ -5482,6 +5567,8 @@ def render_dashboard() -> None:
         with sim_col:
             render_what_if_simulator(display_gas_context, st.session_state.risk_score)
         with metric_col:
+            st.markdown("**Live Context Events**")
+            render_alert_feed(display_gas_context)
             render_future_echo_prediction(st.session_state.violation_log, display_gas_context, st.session_state.risk_score)
         render_evaluation_metrics(
             st.session_state.violation_log,
