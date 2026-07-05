@@ -5,7 +5,7 @@ import hashlib
 import re
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import cv2
@@ -43,6 +43,7 @@ FACTORY_DEMO_VIDEO = SAMPLE_VIDEOS_DIR / "factory_demonstration.mp4"
 ASSETS_DIR = BASE_DIR / "assets"
 ARCHITECTURE_DIAGRAM_PATH = ASSETS_DIR / "SafeVision_AI_Architecture.png"
 LANDING_DEMO_VIDEO_PATH = ASSETS_DIR / "safevision_demo_video.mp4"
+APP_TIMEZONE = timezone(timedelta(hours=5, minutes=30), name="IST")
 
 
 st.set_page_config(
@@ -70,6 +71,22 @@ def clean_ui_text(value: object) -> str:
     for old, new in replacements.items():
         text = text.replace(old, new)
     return " ".join(text.split())
+
+
+def app_now() -> datetime:
+    return datetime.now(APP_TIMEZONE)
+
+
+def app_time() -> str:
+    return app_now().strftime("%H:%M:%S IST")
+
+
+def app_datetime_stamp() -> str:
+    return app_now().strftime("%Y-%m-%d %H:%M:%S IST")
+
+
+def app_filename_stamp() -> str:
+    return app_now().strftime("%Y%m%d_%H%M%S")
 
 
 def init_session_state() -> None:
@@ -185,6 +202,17 @@ def open_capture(source):
     return cv2.VideoCapture(str(source))
 
 
+def frame_detail_score(frame: np.ndarray) -> float:
+    if frame is None or frame.size == 0:
+        return 0.0
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    brightness = float(np.mean(gray))
+    contrast = float(np.std(gray))
+    edge_density = float(np.mean(cv2.Canny(gray, 50, 150) > 0) * 100)
+    blank_penalty = 35.0 if brightness > 242 and contrast < 12 else 0.0
+    return contrast + edge_density - blank_penalty
+
+
 def create_factory_preview_frame(width: int = 960, height: int = 540) -> np.ndarray:
     frame = np.full((height, width, 3), (238, 242, 247), dtype=np.uint8)
     cv2.rectangle(frame, (0, 360), (width, height), (82, 91, 98), -1)
@@ -221,10 +249,22 @@ def _read_first_frame(video_source):
     try:
         if not cap.isOpened():
             return None
-        ok, frame = cap.read()
-        if not ok or frame is None:
-            return None
-        return frame
+        best_frame = None
+        best_score = -100.0
+        first_frame = None
+        for _ in range(45):
+            ok, frame = cap.read()
+            if not ok or frame is None:
+                break
+            if first_frame is None:
+                first_frame = frame
+            score = frame_detail_score(frame)
+            if score > best_score:
+                best_frame = frame
+                best_score = score
+            if score >= 18:
+                return frame
+        return best_frame if best_frame is not None else first_frame
     finally:
         cap.release()
 
@@ -570,7 +610,7 @@ def current_camera_events(camera: dict | None, gas_context: dict | None) -> list
     if not rows and gas_elevated(gas_context):
         rows.append(
             {
-                "timestamp": datetime.now().strftime("%H:%M:%S"),
+                "timestamp": app_time(),
                 "camera": camera.get("camera", "CCTV"),
                 "zone": camera.get("zone", "Plant"),
                 "severity": "HIGH",
@@ -590,7 +630,7 @@ def collect_plant_events(gas_context: dict | None) -> list[dict]:
             vtype = row.get("violation_type", "vision")
             events.append(
                 {
-                    "timestamp": row.get("timestamp", datetime.now().strftime("%H:%M:%S")),
+                    "timestamp": row.get("timestamp", app_time()),
                     "camera": "Industrial CCTV",
                     "zone": row.get("zone_name", st.session_state.get("zone_map_target", "Plant")),
                     "severity": row.get("severity", "MEDIUM"),
@@ -602,7 +642,7 @@ def collect_plant_events(gas_context: dict | None) -> list[dict]:
             readings = gas_context.get("readings", {}) if gas_context else {}
             events.append(
                 {
-                    "timestamp": gas_context.get("sensor_timestamp", datetime.now().strftime("%H:%M:%S")) if gas_context else datetime.now().strftime("%H:%M:%S"),
+                    "timestamp": gas_context.get("sensor_timestamp", app_time()) if gas_context else app_time(),
                     "camera": "Industrial CCTV",
                     "zone": st.session_state.get("zone_map_target", "Plant"),
                     "severity": "HIGH",
@@ -613,7 +653,7 @@ def collect_plant_events(gas_context: dict | None) -> list[dict]:
         if gas_context and gas_context.get("permit_type", "None") != "None" and gas_elevated(gas_context):
             events.append(
                 {
-                    "timestamp": datetime.now().strftime("%H:%M:%S"),
+                    "timestamp": app_time(),
                     "camera": "Permit Engine",
                     "zone": st.session_state.get("zone_map_target", "Plant"),
                     "severity": "HIGH",
@@ -622,7 +662,7 @@ def collect_plant_events(gas_context: dict | None) -> list[dict]:
                 }
             )
     if not events and st.session_state.get("plant_monitoring_active"):
-        now = datetime.now().strftime("%H:%M:%S")
+        now = app_time()
         for camera in st.session_state.get("plant_cameras", [])[:4]:
             severity = "HIGH" if gas_elevated(gas_context) else "MEDIUM"
             events.append(
@@ -642,7 +682,7 @@ def start_multi_camera_monitoring(gas_context: dict | None) -> None:
     st.session_state.plant_monitoring_active = True
     if not st.session_state.get("monitoring_started_at"):
         st.session_state.monitoring_started_at = time.time()
-    now = datetime.now().strftime("%H:%M:%S")
+    now = app_time()
     for camera in st.session_state.get("plant_cameras", []):
         refresh_camera_status(camera)
         configured = camera.get("status") in {"Configured", "Monitoring", "Alert"}
@@ -752,7 +792,7 @@ def render_top_header(gas_context: dict | None) -> None:
     status = "Monitoring Active" if st.session_state.get("plant_monitoring_active") or st.session_state.get("processing") else "Ready"
     status_class = "active" if status == "Monitoring Active" else "ready"
     source_label = "Industrial CCTV" if live_cctv_mode else "Recorded CCTV"
-    now = datetime.now().strftime("%H:%M:%S")
+    now = app_time()
     st.markdown(
         f"""
         <div class="top-command-header">
@@ -767,7 +807,7 @@ def render_top_header(gas_context: dict | None) -> None:
             <div><b>Monitoring</b><em>{active_cameras}</em></div>
             <div><b>Current Risk</b><em>{score}% {html.escape(level)}</em></div>
             <div><b>Open Alerts</b><em>{open_alerts}</em></div>
-            <div><b>Last Update</b><em>{now}</em></div>
+            <div><b>Last Refresh</b><em>{now}</em></div>
           </div>
         </div>
         """,
@@ -954,7 +994,7 @@ def render_ai_advisor(gas_context: dict | None) -> None:
         confidence += min(12, len(events) * 3)
         confidence += min(5, elapsed // 30)
         confidence = min(98, confidence)
-    last_update = datetime.now().strftime("%H:%M:%S")
+    last_update = app_time()
 
     if not source_ready:
         advice = "No CCTV source is active yet. Upload a plant camera feed or switch to Industrial CCTV, then save a restricted zone to arm live safety intelligence."
@@ -1492,7 +1532,7 @@ def live_gas_context(base_context: dict | None, elapsed_seconds: float) -> dict 
         }
 
     context["readings"] = readings
-    context["sensor_timestamp"] = datetime.now().strftime("%H:%M:%S")
+    context["sensor_timestamp"] = app_time()
     return context
 
 
@@ -2138,7 +2178,7 @@ def build_incident_report_text(
     alert_text = "\n".join(f"- Frame {row.get('frame')}: {clean_ui_text(row.get('message'))}" for row in recent_alerts) or "- No alerts captured yet."
     guidance_text = "\n".join(f"- {item}" for item in guidance)
     return f"""SafeVision AI Preliminary Incident Report
-Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Generated: {app_datetime_stamp()}
 
 Risk Summary
 - Current risk score: {risk_score}/100
@@ -2524,7 +2564,7 @@ def render_echo_timeline(violation_log: list[dict], gas_context: dict | None) ->
 
 
 def latest_frame_events(violation_log: list[dict], gas_context: dict | None, risk_score: int) -> list[dict]:
-    now = datetime.now().strftime("%H:%M:%S")
+    now = app_time()
     alerts = []
     status = gas_status_text(gas_context)
     if status != "Normal":
@@ -5130,7 +5170,8 @@ def render_dashboard() -> None:
         canvas_height,
     )
     if canvas_background_path and canvas_background_path.exists():
-        canvas_background = Image.open(canvas_background_path).convert("RGB")
+        with Image.open(canvas_background_path) as saved_background:
+            canvas_background = saved_background.convert("RGB").copy()
     else:
         canvas_background = Image.fromarray(cv2.cvtColor(first_frame, cv2.COLOR_BGR2RGB)).resize(
             (canvas_width, canvas_height),
@@ -5253,7 +5294,7 @@ def render_dashboard() -> None:
         st.download_button(
             "Download Generated Incident Report",
             data=st.session_state.generated_report_text,
-            file_name=f"safevision_incident_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            file_name=f"safevision_incident_report_{app_filename_stamp()}.txt",
             mime="text/plain",
             use_container_width=True,
         )
@@ -5302,7 +5343,7 @@ def render_dashboard() -> None:
         for row in st.session_state.violation_log[-20:]:
             camera_events.append(
                 {
-                    "timestamp": row.get("timestamp", datetime.now().strftime("%H:%M:%S")),
+                    "timestamp": row.get("timestamp", app_time()),
                     "camera": camera.get("camera", "CCTV"),
                     "zone": row.get("zone_name", camera.get("zone", "Plant")),
                     "severity": row.get("severity", "MEDIUM"),
@@ -5429,7 +5470,7 @@ def render_dashboard() -> None:
         st.download_button(
             "Download Incident Report Draft",
             data=report_text,
-            file_name=f"safevision_incident_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            file_name=f"safevision_incident_report_{app_filename_stamp()}.txt",
             mime="text/plain",
             use_container_width=True,
         )
