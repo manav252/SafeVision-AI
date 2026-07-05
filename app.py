@@ -1,7 +1,8 @@
 import queue
 import math
 import html
-import tempfile
+import hashlib
+import re
 import threading
 import time
 from datetime import datetime
@@ -35,6 +36,8 @@ MODELS_DIR = BASE_DIR / "models"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 EVIDENCE_DIR = OUTPUTS_DIR / "evidence"
 LOGS_DIR = OUTPUTS_DIR / "logs"
+UPLOADS_DIR = OUTPUTS_DIR / "uploads"
+CANVAS_FRAMES_DIR = OUTPUTS_DIR / "canvas_frames"
 SAMPLE_VIDEOS_DIR = BASE_DIR / "sample_videos"
 FACTORY_DEMO_VIDEO = SAMPLE_VIDEOS_DIR / "factory_demonstration.mp4"
 ASSETS_DIR = BASE_DIR / "assets"
@@ -249,13 +252,32 @@ def load_first_frame(video_source, allow_demo_fallback: bool = False, allow_plac
     return None
 
 
+def safe_asset_stem(value: str) -> str:
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(value).stem).strip("-._")
+    return stem[:60] or "asset"
+
+
 def save_uploaded_video(uploaded_file) -> Path:
+    ensure_project_dirs([UPLOADS_DIR])
     suffix = Path(uploaded_file.name).suffix or ".mp4"
-    temp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-    temp.write(uploaded_file.getbuffer())
-    temp.flush()
-    temp.close()
-    return Path(temp.name)
+    payload = uploaded_file.getbuffer()
+    digest = hashlib.sha256(payload).hexdigest()[:16]
+    target = UPLOADS_DIR / f"{safe_asset_stem(uploaded_file.name)}-{uploaded_file.size}-{digest}{suffix}"
+    if not target.exists() or target.stat().st_size != uploaded_file.size:
+        target.write_bytes(payload)
+    return target
+
+
+def save_canvas_background_frame(frame: np.ndarray, camera_id: str, width: int, height: int) -> Path | None:
+    ensure_project_dirs([CANVAS_FRAMES_DIR])
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    preview = Image.fromarray(rgb_frame).resize((width, height), Image.Resampling.LANCZOS).convert("RGB")
+    target = CANVAS_FRAMES_DIR / f"{safe_asset_stem(camera_id)}_{width}x{height}.png"
+    try:
+        preview.save(target, format="PNG")
+    except Exception:
+        return None
+    return target
 
 
 PLANT_ZONES = ["Zone A", "Zone B", "Control Room", "Reactor Zone"]
@@ -4770,7 +4792,7 @@ def render_landing_page() -> None:
 
 
 def render_dashboard() -> None:
-    ensure_project_dirs([MODELS_DIR, EVIDENCE_DIR, LOGS_DIR, SAMPLE_VIDEOS_DIR])
+    ensure_project_dirs([MODELS_DIR, EVIDENCE_DIR, LOGS_DIR, UPLOADS_DIR, CANVAS_FRAMES_DIR, SAMPLE_VIDEOS_DIR])
     ensure_factory_demo_video()
     init_session_state()
     render_css()
@@ -5092,11 +5114,28 @@ def render_dashboard() -> None:
                 st.session_state.zone_canvas_nonce += 1
                 st.rerun()
 
-    canvas_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2RGB)
     canvas_width = min(500, first_frame.shape[1])
     scale = canvas_width / first_frame.shape[1]
     canvas_height = int(first_frame.shape[0] * scale)
-    preview = Image.fromarray(canvas_frame).resize((canvas_width, canvas_height), Image.Resampling.LANCZOS).convert("RGB")
+    camera_for_canvas = active_camera()
+    canvas_camera_id = (
+        camera_for_canvas.get("id")
+        if camera_for_canvas
+        else f"industrial_{FACTORY_DEMO_VIDEO.stem}"
+    )
+    canvas_background_path = save_canvas_background_frame(
+        first_frame,
+        f"{canvas_camera_id}_{st.session_state.get('source_signature', 'source')}",
+        canvas_width,
+        canvas_height,
+    )
+    if canvas_background_path and canvas_background_path.exists():
+        canvas_background = Image.open(canvas_background_path).convert("RGB")
+    else:
+        canvas_background = Image.fromarray(cv2.cvtColor(first_frame, cv2.COLOR_BGR2RGB)).resize(
+            (canvas_width, canvas_height),
+            Image.Resampling.LANCZOS,
+        ).convert("RGB")
     preset = st.session_state.get("zone_preset", "drawn")
     preset_zone = (
         build_preset_zone(first_frame.shape[1], first_frame.shape[0], preset)
@@ -5135,7 +5174,7 @@ def render_dashboard() -> None:
                 fill_color="rgba(239, 68, 68, 0.18)",
                 stroke_width=4,
                 stroke_color=DEFAULT_ZONE_COLOR,
-                background_image=preview,
+                background_image=canvas_background,
                 update_streamlit=True,
                 height=canvas_height,
                 width=canvas_width,
@@ -5143,6 +5182,8 @@ def render_dashboard() -> None:
                 display_toolbar=True,
                 key=f"zone_canvas_{st.session_state.get('active_cctv_index', 0)}_{preset}_{edit_zone_name}_{st.session_state.zone_canvas_nonce}",
             )
+            if not canvas_background_path:
+                st.caption("Canvas frame fallback active. If the preview is blank, choose a preset zone and continue monitoring.")
             if st.session_state.monitor_all_zones:
                 st.caption(f"Drawing target: {edit_zone_name}. Switch the edit selector to draw the next restricted zone.")
                 legend = "".join(
