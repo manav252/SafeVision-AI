@@ -14,8 +14,8 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 from PIL import Image
-from streamlit_drawable_canvas import st_canvas
 
+from canvas_compat import st_canvas
 from detector import SafetyDetector
 from risk_engine import RiskEngine
 from utils import (
@@ -1208,38 +1208,6 @@ def configured_zone_defs(width: int, height: int, cctv_index: int | None = None,
     if fallback_name not in defaults:
         fallback_name = "Zone A"
     return [{"name": fallback_name, "points": defaults[fallback_name]}]
-
-
-def rectangle_from_percent_controls(
-    width: int,
-    height: int,
-    x_pct: int,
-    y_pct: int,
-    w_pct: int,
-    h_pct: int,
-) -> list[tuple[int, int]]:
-    x1 = int(width * x_pct / 100)
-    y1 = int(height * y_pct / 100)
-    x2 = min(width - 1, x1 + int(width * w_pct / 100))
-    y2 = min(height - 1, y1 + int(height * h_pct / 100))
-    return [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]
-
-
-def zone_percent_defaults(
-    zone_points: list[tuple[int, int]],
-    width: int,
-    height: int,
-) -> tuple[int, int, int, int]:
-    xs = [point[0] for point in zone_points]
-    ys = [point[1] for point in zone_points]
-    x1, x2 = max(0, min(xs)), min(width - 1, max(xs))
-    y1, y2 = max(0, min(ys)), min(height - 1, max(ys))
-    return (
-        max(0, min(90, int(x1 / width * 100))),
-        max(0, min(90, int(y1 / height * 100))),
-        max(10, min(95, int((x2 - x1) / width * 100))),
-        max(10, min(95, int((y2 - y1) / height * 100))),
-    )
 
 
 def invalidate_processed_preview() -> None:
@@ -5156,7 +5124,6 @@ def render_dashboard() -> None:
         return
 
     default_zone = build_default_zone(first_frame.shape[1], first_frame.shape[0])
-    camera_index = active_camera().get("index", st.session_state.get("active_cctv_index", 0)) if active_camera() else st.session_state.get("active_cctv_index", 0)
 
     st.subheader("1. Define Restricted Zone")
     zone_col, action_col = st.columns([0.58, 0.42], gap="medium")
@@ -5199,35 +5166,10 @@ def render_dashboard() -> None:
                 else:
                     invalidate_processed_preview()
                 st.session_state.zone_canvas_nonce += 1
-        custom_zone_label = "Adjust Custom Zone" if input_mode == "Recorded CCTV" else "Draw Free Zone"
-        if st.button(custom_zone_label, type="primary" if active_preset == "drawn" else "secondary", use_container_width=True):
+        if st.button("Draw Free Zone", type="primary" if active_preset == "drawn" else "secondary", use_container_width=True):
             st.session_state.zone_preset = "drawn"
             invalidate_processed_preview()
             st.session_state.zone_canvas_nonce += 1
-        if input_mode == "Recorded CCTV" and st.session_state.get("zone_preset", "drawn") == "drawn":
-            manual_target = st.session_state.get("zone_edit_target", st.session_state.zone_map_target)
-            manual_default = get_saved_zone(manual_target, default_zone, camera_index)
-            default_x, default_y, default_w, default_h = zone_percent_defaults(
-                manual_default,
-                first_frame.shape[1],
-                first_frame.shape[0],
-            )
-            slider_prefix = f"manual_zone_{camera_index}_{manual_target}"
-            st.markdown("**Custom zone editor**")
-            x_pct = st.slider("Left edge", 0, 90, default_x, 1, key=f"{slider_prefix}_x")
-            y_pct = st.slider("Top edge", 0, 90, default_y, 1, key=f"{slider_prefix}_y")
-            w_pct = st.slider("Zone width", 10, 95, default_w, 1, key=f"{slider_prefix}_w")
-            h_pct = st.slider("Zone height", 10, 95, default_h, 1, key=f"{slider_prefix}_h")
-            manual_zone = rectangle_from_percent_controls(
-                first_frame.shape[1],
-                first_frame.shape[0],
-                x_pct,
-                y_pct,
-                w_pct,
-                h_pct,
-            )
-            set_saved_zone(manual_target, manual_zone, camera_index)
-            st.caption("Adjust this custom boundary on the visible CCTV frame, then save the zone for this camera.")
 
         st.session_state.monitor_all_zones = st.checkbox(
             "Monitor all configured zones",
@@ -5282,6 +5224,7 @@ def render_dashboard() -> None:
                 remove_saved_zone(st.session_state.get("zone_edit_target", "Zone A"))
                 st.session_state.zone_canvas_nonce += 1
                 st.rerun()
+
     canvas_width = min(500, first_frame.shape[1])
     scale = canvas_width / first_frame.shape[1]
     canvas_height = int(first_frame.shape[0] * scale)
@@ -5313,6 +5256,7 @@ def render_dashboard() -> None:
     )
     preset_zone_defaults = camera_zone_defaults(first_frame.shape[1], first_frame.shape[0])
     custom_zone_points = st.session_state.get("custom_zone_points", {})
+    camera_index = active_camera().get("index", st.session_state.get("active_cctv_index", 0)) if active_camera() else st.session_state.get("active_cctv_index", 0)
     all_zone_defs = configured_zone_defs(first_frame.shape[1], first_frame.shape[0], camera_index)
     edit_zone_name = st.session_state.get("zone_edit_target", st.session_state.zone_map_target)
 
@@ -5337,20 +5281,20 @@ def render_dashboard() -> None:
                 canvas_width,
             )
             canvas_result = None
-        elif input_mode == "Recorded CCTV":
-            target_name = edit_zone_name if st.session_state.monitor_all_zones else st.session_state.zone_map_target
-            preview_zone = get_saved_zone(target_name, default_zone, camera_index)
-            preview_defs = all_zone_defs if st.session_state.monitor_all_zones else [{"name": target_name, "points": preview_zone}]
+        elif input_mode == "Recorded CCTV" and preset != "drawn":
+            preview_zone = get_saved_zone(
+                st.session_state.zone_map_target,
+                default_zone,
+                camera_index,
+            )
+            preview_defs = all_zone_defs if st.session_state.monitor_all_zones else [{"name": st.session_state.zone_map_target, "points": preview_zone}]
             render_zone_preview_multi(
                 first_frame,
                 preview_defs,
                 canvas_width,
             )
             canvas_result = None
-            if preset == "drawn":
-                st.caption("Custom zone editor is active. Move the sliders in Zone Setup to adjust this boundary.")
-            else:
-                st.caption("Preset preview is active. Choose Draw Free Zone to adjust a custom boundary.")
+            st.caption("Preset preview is active. Choose Draw Free Zone to sketch a custom boundary.")
         else:
             canvas_result = st_canvas(
                 fill_color="rgba(239, 68, 68, 0.18)",
