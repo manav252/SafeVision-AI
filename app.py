@@ -988,7 +988,7 @@ def render_plant_status(gas_context: dict | None) -> None:
     st.markdown(f"<div class='plant-status-grid'>{html_cards}</div>", unsafe_allow_html=True)
 
 
-def render_alert_feed(gas_context: dict | None) -> None:
+def render_alert_feed(gas_context: dict | None, key_scope: str = "main") -> None:
     events = collect_plant_events(gas_context)
     st.markdown("<div class='events-panel'><strong>Recent Safety Events</strong>", unsafe_allow_html=True)
     if not events:
@@ -1011,7 +1011,19 @@ def render_alert_feed(gas_context: dict | None) -> None:
         )
         button_cols = st.columns([0.24, 0.76])
         with button_cols[0]:
-            if st.button("🧠 Explain This Alert", key=f"explain_alert_{index}_{event.get('timestamp', event.get('time', 'live'))}_{event.get('type', 'event')}", use_container_width=True):
+            event_key = hashlib.sha256(
+                "|".join(
+                    [
+                        str(index),
+                        str(event.get("timestamp", event.get("time", "live"))),
+                        str(event.get("type", "event")),
+                        str(event.get("message", "")),
+                        str(event.get("camera", "")),
+                        str(event.get("zone", "")),
+                    ]
+                ).encode("utf-8")
+            ).hexdigest()[:12]
+            if st.button("🧠 Explain This Alert", key=f"explain_alert_{key_scope}_{event_key}", use_container_width=True):
                 show_alert_explanation_dialog(event, gas_context)
 
 
@@ -5482,7 +5494,7 @@ def render_dashboard() -> None:
             "risk_score": camera["risk_score"],
         }
         refresh_camera_status(camera)
-    render_alert_feed(display_gas_context)
+    render_alert_feed(display_gas_context, key_scope="dashboard")
 
     st.markdown('<div class="metric-row">', unsafe_allow_html=True)
     left, mid, right = st.columns([1.2, 0.8, 0.8])
@@ -5600,7 +5612,7 @@ def render_dashboard() -> None:
             render_what_if_simulator(display_gas_context, st.session_state.risk_score)
         with metric_col:
             st.markdown("**Live Context Events**")
-            render_alert_feed(display_gas_context)
+            render_alert_feed(display_gas_context, key_scope="settings")
             render_future_echo_prediction(st.session_state.violation_log, display_gas_context, st.session_state.risk_score)
         render_evaluation_metrics(
             st.session_state.violation_log,
