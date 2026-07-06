@@ -132,6 +132,56 @@ Open:
 - FastAPI backend: `http://localhost:8000`
 - API docs: `http://localhost:8000/docs`
 
+## Data Storage and PostgreSQL
+
+SafeVision AI uses PostgreSQL through Docker Compose for backend data. The Streamlit dashboard does not write directly to the database. Instead, detected safety events are sent through FastAPI and then stored in PostgreSQL.
+
+```text
+Streamlit dashboard -> FastAPI detection API -> PostgreSQL
+```
+
+Automatically stored in PostgreSQL:
+
+- detection events
+- safety events
+- alerts
+- risk scores
+- PPE status
+- gas readings
+- zone status
+- dashboard/report source data
+
+Uploaded video files are not stored in GitHub or PostgreSQL. For local/Docker runs they are saved on disk under:
+
+```text
+outputs/uploads/
+```
+
+The `outputs/` directory is ignored by Git because uploaded videos, evidence frames, and generated logs can become large. If the app is running on Streamlit Cloud, uploaded files live only on Streamlit Cloud's temporary filesystem for that app session.
+
+To inspect PostgreSQL from your terminal:
+
+```bash
+cd /Users/manavdoshi/Documents/Codex/2026-07-06/files-mentioned-by-the-user-you/SafeVision-AI
+docker compose up -d
+docker compose exec postgres psql -U safevision -d safevision
+```
+
+After the prompt changes to `safevision=#`, run SQL such as:
+
+```sql
+SELECT * FROM safety_events ORDER BY created_at DESC;
+SELECT * FROM alerts ORDER BY created_at DESC;
+```
+
+Exit PostgreSQL with:
+
+```sql
+\q
+```
+
+Downloading an incident report from the Streamlit UI is optional. Detection data is synced automatically when the backend is running and `SAFEVISION_BACKEND_SYNC=true`. The download button only saves a report file to your computer.
+
 ## API and Documentation
 
 - API examples: [docs/api.md](docs/api.md)
