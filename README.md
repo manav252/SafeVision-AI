@@ -43,6 +43,7 @@ Worker near restricted zone
 - Plant Risk Heatmap showing zone-level risk.
 - Evidence screenshots and CSV logs.
 - FastAPI backend with authentication, events, alerts, detection intake, reports, dashboard summary, and heatmap APIs.
+- Streamlit-to-FastAPI sync for storing demo safety events in PostgreSQL.
 - Docker and GitHub Actions support.
 
 ## Tech Stack

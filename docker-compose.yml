@@ -34,6 +34,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.streamlit
+    environment:
+      SAFEVISION_API_URL: http://api:8000
+      SAFEVISION_BACKEND_SYNC: ${SAFEVISION_BACKEND_SYNC:-true}
+      SAFEVISION_API_EMAIL: ${SAFEVISION_API_EMAIL:-streamlit@safevision.ai}
+      SAFEVISION_API_PASSWORD: ${SAFEVISION_API_PASSWORD:-replace-this-streamlit-sync-password}
     ports:
       - "8501:8501"
     volumes:

@@ -13,6 +13,7 @@
 - Detection API at `/api/v1/detection/`.
 - Reports APIs at `/api/v1/reports/events-summary`, `/api/v1/reports/alerts-summary`, and `/api/v1/reports/safety-report`.
 - Dashboard API at `/api/v1/dashboard/summary`.
+- Streamlit-to-backend event sync so demo violation logs can be persisted through FastAPI into PostgreSQL.
 - Pytest coverage for health, auth, events, alerts, detection, dashboard, reports, risk engine, and advisor logic.
 - Model card at `docs/model_card.md`.
 - Quickstart guide at `docs/quickstart.md`.

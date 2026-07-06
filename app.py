@@ -2,6 +2,7 @@ import queue
 import math
 import html
 import hashlib
+import os
 import re
 import threading
 import time
@@ -18,6 +19,7 @@ from PIL import Image
 from canvas_compat import st_canvas
 from detector import SafetyDetector
 from risk_engine import RiskEngine
+from safevision_api_client import SafeVisionApiClient
 from utils import (
     DEFAULT_ZONE_COLOR,
     build_default_zone,
@@ -151,6 +153,9 @@ def init_session_state() -> None:
         "selected_heatmap_hotspot": "Highest Risk",
         "upload_nonce": 0,
         "reset_feedback": "",
+        "backend_synced_rows": 0,
+        "backend_sync_count": 0,
+        "backend_sync_error": "",
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -167,6 +172,9 @@ def reset_processing_state() -> None:
     st.session_state.worker_count = 0
     st.session_state.violation_count = 0
     st.session_state.violation_log = []
+    st.session_state.backend_synced_rows = 0
+    st.session_state.backend_sync_count = 0
+    st.session_state.backend_sync_error = ""
     st.session_state.worker_queue = None
     st.session_state.worker_thread = None
     st.session_state.worker_done = False
@@ -3045,8 +3053,10 @@ def drain_worker_queue() -> None:
                         }
                     ]
                 )[-12:]
+            sync_new_backend_events(st.session_state.get("gas_context"))
         elif item_type == "log":
             st.session_state.violation_log = item["violation_log"]
+            sync_new_backend_events(st.session_state.get("gas_context"))
         elif item_type == "error":
             st.session_state.worker_error = item["message"]
             st.session_state.processing = False
@@ -3093,6 +3103,28 @@ def stop_live_monitoring() -> None:
     if st.session_state.live_stop_event is not None:
         st.session_state.live_stop_event.set()
     st.session_state.processing = False
+
+
+@st.cache_resource(show_spinner=False)
+def get_api_client() -> SafeVisionApiClient:
+    return SafeVisionApiClient()
+
+
+def sync_new_backend_events(gas_context: dict | None = None) -> None:
+    if os.getenv("SAFEVISION_BACKEND_SYNC", "true").lower() not in {"1", "true", "yes", "on"}:
+        return
+    rows = st.session_state.get("violation_log", [])
+    already_synced = int(st.session_state.get("backend_synced_rows", 0))
+    new_rows = rows[already_synced:]
+    if not new_rows:
+        return
+    try:
+        result = get_api_client().sync_events(new_rows, gas_context)
+        st.session_state.backend_synced_rows = already_synced + result.synced
+        st.session_state.backend_sync_count = st.session_state.get("backend_sync_count", 0) + result.synced
+        st.session_state.backend_sync_error = result.error or ""
+    except Exception as exc:
+        st.session_state.backend_sync_error = f"Backend sync paused: {exc}"
 
 
 def apply_context_preset(name: str) -> None:

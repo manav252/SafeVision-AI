@@ -28,13 +28,17 @@ class AlertStatus(str, enum.Enum):
     resolved = "RESOLVED"
 
 
+def enum_values(enum_class: type[enum.Enum]) -> list[str]:
+    return [item.value for item in enum_class]
+
+
 class User(Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255))
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.viewer)
+    role: Mapped[UserRole] = mapped_column(Enum(UserRole, values_callable=enum_values), default=UserRole.viewer)
     hashed_password: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -62,7 +66,7 @@ class SafetyEvent(Base):
     camera_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("cameras.id"), nullable=True)
     zone_name: Mapped[str] = mapped_column(String(120), default="Plant")
     event_type: Mapped[str] = mapped_column(String(80), index=True)
-    severity: Mapped[AlertSeverity] = mapped_column(Enum(AlertSeverity), default=AlertSeverity.low)
+    severity: Mapped[AlertSeverity] = mapped_column(Enum(AlertSeverity, values_callable=enum_values), default=AlertSeverity.low)
     message: Mapped[str] = mapped_column(Text)
     risk_score: Mapped[int] = mapped_column(Integer, default=0)
     worker_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
@@ -80,8 +84,8 @@ class Alert(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     event_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("safety_events.id"))
     title: Mapped[str] = mapped_column(String(160))
-    severity: Mapped[AlertSeverity] = mapped_column(Enum(AlertSeverity))
-    status: Mapped[AlertStatus] = mapped_column(Enum(AlertStatus), default=AlertStatus.open)
+    severity: Mapped[AlertSeverity] = mapped_column(Enum(AlertSeverity, values_callable=enum_values))
+    status: Mapped[AlertStatus] = mapped_column(Enum(AlertStatus, values_callable=enum_values), default=AlertStatus.open)
     assigned_to: Mapped[str | None] = mapped_column(String(255), nullable=True)
     response_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

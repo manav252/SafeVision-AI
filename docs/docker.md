@@ -22,3 +22,13 @@ Services:
 - PostgreSQL: `localhost:5432`
 
 The FastAPI service installs `requirements-backend.txt`. The Streamlit service installs `requirements.txt` so the existing demo remains lightweight.
+
+## Streamlit Backend Sync
+
+When `SAFEVISION_BACKEND_SYNC=true`, Streamlit sends newly detected safety events to FastAPI:
+
+```text
+Streamlit dashboard -> FastAPI /api/v1/detection/ -> PostgreSQL
+```
+
+Inside Docker Compose, Streamlit reaches the API at `http://api:8000`. For local non-Docker Streamlit runs, use `SAFEVISION_API_URL=http://localhost:8000`.
