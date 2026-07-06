@@ -96,3 +96,68 @@ class RiskSummary(BaseModel):
     factors: list[str]
     recommendation: str
 
+
+class PpeStatus(BaseModel):
+    helmet: bool = True
+    vest: bool = True
+    gloves: bool | None = None
+    boots: bool | None = None
+
+
+class GasReadings(BaseModel):
+    methane_lel: float = Field(default=0, ge=0)
+    co_ppm: float = Field(default=0, ge=0)
+    h2s_ppm: float = Field(default=0, ge=0)
+    oxygen_percent: float = Field(default=20.9, ge=0, le=100)
+
+
+class ZoneStatus(BaseModel):
+    zone_name: str = "Plant"
+    restricted_zone_breach: bool = False
+
+
+class DetectionCreate(BaseModel):
+    camera_id: UUID | None = None
+    worker_id: str | None = None
+    detection_type: str = "person"
+    confidence_score: float = Field(ge=0, le=1)
+    ppe_status: PpeStatus = Field(default_factory=PpeStatus)
+    gas_readings: GasReadings = Field(default_factory=GasReadings)
+    zone_status: ZoneStatus = Field(default_factory=ZoneStatus)
+    metadata: dict | None = None
+
+
+class DetectionRead(BaseModel):
+    event: SafetyEventRead
+    calculated_risk_score: int
+    alert_created: bool
+    risk_factors: list[str]
+
+
+class EventsSummary(BaseModel):
+    total_events: int
+    by_severity: dict[str, int]
+    by_type: dict[str, int]
+
+
+class AlertsSummary(BaseModel):
+    total_alerts: int
+    active_alerts: int
+    by_status: dict[str, int]
+    by_severity: dict[str, int]
+
+
+class SafetyReport(BaseModel):
+    generated_at: datetime
+    events: EventsSummary
+    alerts: AlertsSummary
+    recent_events: list[SafetyEventRead]
+    open_alerts: list[AlertRead]
+
+
+class DashboardSummary(BaseModel):
+    total_events: int
+    active_alerts: int
+    risk_distribution: dict[str, int]
+    recent_incidents: list[SafetyEventRead]
+    heatmap_summary: dict

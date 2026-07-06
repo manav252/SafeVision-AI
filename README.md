@@ -1,5 +1,11 @@
 # SafeVision AI
 
+[![SafeVision AI CI](https://github.com/manav252/SafeVision-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/manav252/SafeVision-AI/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688)
+![Streamlit](https://img.shields.io/badge/Demo-Streamlit-ff4b4b)
+![License](https://img.shields.io/badge/License-MIT-green)
+
 SafeVision AI is an industrial safety intelligence platform that combines CCTV analytics with plant context such as gas readings, work permits, equipment status, shift handover notes, restricted zones, and compliance checklist state.
 
 **Live Demo:** [safevision-ai-manav25.streamlit.app](https://safevision-ai-manav25.streamlit.app)
@@ -36,7 +42,7 @@ Worker near restricted zone
 - Explain-this-alert workflow for demo explainability.
 - Plant Risk Heatmap showing zone-level risk.
 - Evidence screenshots and CSV logs.
-- FastAPI backend scaffold with PostgreSQL schema for enterprise extension.
+- FastAPI backend with authentication, events, alerts, detection intake, reports, dashboard summary, and heatmap APIs.
 - Docker and GitHub Actions support.
 
 ## Tech Stack
@@ -62,6 +68,8 @@ SafeVision-AI/
 ├── models/                    # YOLO model files
 ├── sample_videos/             # Demo CCTV footage
 ├── requirements.txt           # Streamlit/Python dependencies
+├── requirements-backend.txt   # FastAPI/backend dependencies
+├── requirements-dev.txt       # Backend test dependencies
 ├── package.json               # React/Vite dependencies
 ├── Dockerfile
 ├── Dockerfile.streamlit
@@ -88,6 +96,18 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
+## Run Backend Locally
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-backend.txt
+cp .env.example .env
+uvicorn backend.app.main:app --reload
+```
+
+Open `http://localhost:8000/docs`.
+
 ## Deploy Website To Vercel
 
 This repo is already configured for Vercel.
@@ -111,6 +131,31 @@ Open:
 - FastAPI backend: `http://localhost:8000`
 - API docs: `http://localhost:8000/docs`
 
+## API and Documentation
+
+- API examples: [docs/api.md](docs/api.md)
+- Quickstart: [docs/quickstart.md](docs/quickstart.md)
+- Docker guide: [docs/docker.md](docs/docker.md)
+- Architecture: [docs/architecture.md](docs/architecture.md)
+- Model card: [docs/model_card.md](docs/model_card.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- Implementation summary: [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)
+
+Recommended GitHub topics: `computer-vision`, `fastapi`, `streamlit`, `industrial-safety`, `yolov8`, `ppe-detection`, `ai-safety`, `postgresql`, `react`, `docker`.
+
+## Security Setup
+
+The backend requires `JWT_SECRET_KEY` from the environment. Use a unique 32+ character value before running FastAPI or Docker Compose. Keep `.env` out of version control and use managed secrets in production.
+
+For local development, copy `.env.example` to `.env` and replace placeholder values.
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+JWT_SECRET_KEY=test-secret-key-for-safevision-ai-32-chars pytest
+```
+
 ## Demo Flow
 
 1. Open the SafeVision AI landing page.
@@ -124,6 +169,7 @@ Open:
 ## Production Notes
 
 - Replace fallback PPE estimation with a site-trained model at `models/ppe_yolov8.pt`.
+- Validate model performance with a documented holdout dataset before operational use.
 - Connect gas readings to PLC, SCADA, MQTT, OPC-UA, or historian APIs.
 - Store evidence in object storage for production.
 - Use managed PostgreSQL and secure JWT configuration.

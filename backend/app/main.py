@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .database import Base, engine
 from .logging_config import configure_logging
-from .routers import advisor, alerts, auth, cameras, events, health, heatmap
+from .routers import advisor, alerts, auth, cameras, dashboard, detection, events, health, heatmap, reports
 
 configure_logging()
 settings = get_settings()
@@ -19,7 +19,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,7 +29,9 @@ app.include_router(health.router, prefix=settings.api_prefix)
 app.include_router(auth.router, prefix=f"{settings.api_prefix}/auth", tags=["Authentication"])
 app.include_router(cameras.router, prefix=f"{settings.api_prefix}/cameras", tags=["Cameras"])
 app.include_router(events.router, prefix=f"{settings.api_prefix}/events", tags=["Safety Events"])
+app.include_router(detection.router, prefix=f"{settings.api_prefix}/detection", tags=["Detection"])
 app.include_router(alerts.router, prefix=f"{settings.api_prefix}/alerts", tags=["Alerts"])
+app.include_router(reports.router, prefix=f"{settings.api_prefix}/reports", tags=["Reports"])
+app.include_router(dashboard.router, prefix=f"{settings.api_prefix}/dashboard", tags=["Dashboard"])
 app.include_router(heatmap.router, prefix=f"{settings.api_prefix}/heatmap", tags=["Heatmap"])
 app.include_router(advisor.router, prefix=f"{settings.api_prefix}/advisor", tags=["AI Safety Advisor"])
-

@@ -97,6 +97,56 @@ Response:
 
 `PATCH /alerts/{alert_id}/acknowledge`
 
+## Detection
+
+### Create Detection Event
+
+`POST /detection/`
+
+```json
+{
+  "camera_id": "00000000-0000-0000-0000-000000000000",
+  "worker_id": "WKR-204",
+  "detection_type": "person",
+  "confidence_score": 0.87,
+  "ppe_status": {
+    "helmet": false,
+    "vest": true
+  },
+  "gas_readings": {
+    "methane_lel": 12,
+    "co_ppm": 10,
+    "h2s_ppm": 0,
+    "oxygen_percent": 20.9
+  },
+  "zone_status": {
+    "zone_name": "Zone B",
+    "restricted_zone_breach": true
+  },
+  "metadata": {
+    "bbox": [10, 20, 100, 220]
+  }
+}
+```
+
+The endpoint calculates a risk score, creates a safety event, and opens an alert when the calculated score is medium or higher.
+
+## Reports
+
+`GET /reports/events-summary`
+
+`GET /reports/alerts-summary`
+
+`GET /reports/safety-report`
+
+The safety report response is export-ready JSON containing event counts, alert counts, recent events, and open alerts.
+
+## Dashboard
+
+`GET /dashboard/summary`
+
+Returns total events, active alerts, risk distribution, recent incidents, and heatmap summary.
+
 ## Heatmap
 
 `GET /heatmap/`
@@ -132,4 +182,3 @@ Response:
   "confidence": 83
 }
 ```
-
