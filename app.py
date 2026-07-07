@@ -579,6 +579,8 @@ def show_alert_explanation_dialog(event: dict, gas_context: dict | None) -> None
 
 @st.dialog("SafeVision AI Pipeline")
 def show_architecture_dialog() -> None:
+    if ARCHITECTURE_DIAGRAM_PATH.exists():
+        st.image(str(ARCHITECTURE_DIAGRAM_PATH), use_column_width=True)
     st.markdown(
         """
         <style>

@@ -63,6 +63,8 @@ SafeVision AI separates the live demo, detection pipeline, backend API, and data
 
 Use this as the current architecture reference for reports, presentations, and project walkthroughs.
 
+![SafeVision AI architecture with FastAPI and PostgreSQL backend](assets/SafeVision_AI_Architecture.png)
+
 ### Overall System Architecture
 
 ```mermaid
