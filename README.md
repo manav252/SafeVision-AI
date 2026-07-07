@@ -275,7 +275,6 @@ JWT_SECRET_KEY=test-secret-key-for-safevision-ai-32-chars pytest
 - Add real alert channels such as email, SMS, WhatsApp, Teams, or plant siren integration.
 
 
-
 ## License
 
 MIT License. See [LICENSE](LICENSE).
