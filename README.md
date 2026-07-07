@@ -53,6 +53,12 @@ Worker near restricted zone
 **Backend scaffold:** FastAPI, SQLAlchemy, PostgreSQL, JWT auth  
 **Deployment:** Vercel for the website, Docker/Streamlit for the live dashboard
 
+## System Architecture
+
+![SafeVision AI system architecture](assets/SafeVision_AI_Architecture.png)
+
+SafeVision AI separates the live demo, backend API, and database layers so the dashboard stays interactive while FastAPI handles persistence and API access.
+
 ## Repository Structure
 
 ```text
@@ -208,6 +214,21 @@ Exit PostgreSQL with:
 ```
 
 Downloading an incident report from the Streamlit UI is optional. Detection data is synced automatically when the backend is running and `SAFEVISION_BACKEND_SYNC=true`. The download button only saves a report file to your computer.
+
+![PostgreSQL query output from Docker Compose](screenshots/postgresql-docker-query.png)
+
+## API Overview
+
+| Endpoint | Purpose |
+| --- | --- |
+| `/api/v1/auth` | Register users and log in with JWT authentication |
+| `/api/v1/events` | Create and list safety events |
+| `/api/v1/alerts` | List, acknowledge, and manage safety alerts |
+| `/api/v1/detection` | Submit detection metadata, PPE status, gas readings, zone status, confidence, and risk score |
+| `/api/v1/reports` | Generate export-ready safety report JSON and event/alert summaries |
+| `/api/v1/dashboard` | Return dashboard summary data such as totals, active alerts, risk distribution, incidents, and heatmap summary |
+| `/api/v1/heatmap` | Return risk heatmap data for plant zones |
+| `/api/v1/health` | API health check |
 
 ## API and Documentation
 
