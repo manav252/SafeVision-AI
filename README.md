@@ -274,12 +274,7 @@ JWT_SECRET_KEY=test-secret-key-for-safevision-ai-32-chars pytest
 - Use managed PostgreSQL and secure JWT configuration.
 - Add real alert channels such as email, SMS, WhatsApp, Teams, or plant siren integration.
 
-## Resume Bullets
 
-- Built an industrial safety intelligence platform combining YOLOv8 computer vision with gas, permit, equipment, shift, and compliance context.
-- Implemented restricted-zone monitoring, PPE violation detection, weighted risk scoring, and explainable safety recommendations.
-- Designed a Vercel-ready React landing page and a Streamlit operations dashboard with evidence capture and CSV incident logs.
-- Added FastAPI/PostgreSQL enterprise scaffolding with authentication, alert/event APIs, Docker support, and deployment documentation.
 
 ## License
 
