@@ -579,36 +579,75 @@ def show_alert_explanation_dialog(event: dict, gas_context: dict | None) -> None
 
 @st.dialog("SafeVision AI Pipeline")
 def show_architecture_dialog() -> None:
-    if ARCHITECTURE_DIAGRAM_PATH.exists():
-        st.image(str(ARCHITECTURE_DIAGRAM_PATH), use_column_width=True)
-    else:
-        st.info("Architecture diagram file is not available in the workspace yet.")
     st.markdown(
         """
-        **SafeVision AI Pipeline**
-
-        1. Multi-camera CCTV feeds
-        2. Vision Processing
-        3. Computer Vision Engine
-        4. Safety Fusion Engine
-        5. Safety Rule Engine
-        6. Risk Engine
-        7. AI Safety Advisor
-        8. Dashboard + Heatmap + Reports
-
+        <style>
+        .modal-architecture {
+            display: grid;
+            gap: .65rem;
+            margin: .75rem 0 1rem;
+        }
+        .modal-architecture span {
+            display: block;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            padding: .72rem .85rem;
+            background: #f8fbff;
+            color: #0f172a;
+            font-weight: 850;
+        }
+        .modal-architecture em {
+            color: #2563eb;
+            font-style: normal;
+            font-weight: 950;
+            text-align: center;
+        }
+        .modal-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: .65rem;
+        }
+        .modal-split span {
+            border-color: #93c5fd;
+            background: #eff6ff;
+        }
+        </style>
+        <div class="modal-architecture">
+            <span>React/Vite Website</span>
+            <em>↓</em>
+            <span>Streamlit Dashboard</span>
+            <em>↓</em>
+            <span>YOLO/OpenCV Detection</span>
+            <em>↓</em>
+            <span>Risk Engine</span>
+            <em>↓</em>
+            <div class="modal-split">
+                <span>AI Safety Advisor</span>
+                <span>FastAPI Backend</span>
+            </div>
+            <em>↓</em>
+            <span>PostgreSQL</span>
+            <em>↓</em>
+            <span>Dashboard / Reports / Alerts</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
         **Core Principle**
 
-        SafeVision AI combines CCTV analytics with operational plant context to transform isolated events into real-time safety intelligence.
+        SafeVision AI combines CCTV analytics with operational plant context, then persists events through FastAPI into PostgreSQL for dashboard summaries, reports, and alerts.
         """
     )
-    with st.expander("Computer Vision Engine"):
-        st.write("Responsible for worker detection, PPE compliance, and restricted-zone analytics.")
-    with st.expander("Safety Fusion Engine"):
-        st.write("Combines visual events with permits, equipment state, gas readings, and shift information.")
-    with st.expander("Safety Rule Engine"):
-        st.write("Applies safety rules such as gas plus zone entry, PPE missing plus active permit, and repeated violations.")
+    with st.expander("YOLO/OpenCV Detection"):
+        st.write("Responsible for worker detection, PPE status, and restricted-zone analytics in Streamlit.")
     with st.expander("Risk Engine"):
         st.write("Converts active safety factors into a weighted 0-100 risk score and Low, Medium, High, or Critical class.")
+    with st.expander("FastAPI + PostgreSQL"):
+        st.write("Receives detection metadata, creates safety events and alerts, and stores backend data in PostgreSQL.")
+    with st.expander("AI Safety Advisor"):
+        st.write("Explains why risk increased and recommends human-reviewed intervention steps.")
 
 
 def current_camera_events(camera: dict | None, gas_context: dict | None) -> list[dict]:
@@ -4842,11 +4881,11 @@ def render_landing_page() -> None:
         </div>
         <div id="architecture" class="landing-section">
           <h3>Architecture</h3>
-          <p>A lightweight demo pipeline that keeps the real dashboard responsive while showing how vision intelligence becomes supervisor action.</p>
+          <p>A full demo pipeline that connects the website, Streamlit dashboard, computer vision layer, risk engine, backend APIs, and PostgreSQL persistence.</p>
           <div class="architecture-flow">
-            <span>CCTV</span><i>→</i><span>YOLO/OpenCV</span><i>→</i><span>Plant Signals</span><i>→</i><span>Risk Fusion Engine</span><i>→</i><span>AI Safety Advisor</span><i>→</i><span>Dashboard</span><i>→</i><span>Supervisor Action</span>
+            <span>React/Vite</span><i>→</i><span>Streamlit</span><i>→</i><span>YOLO/OpenCV</span><i>→</i><span>Risk Engine</span><i>→</i><span>AI Safety Advisor</span><i>+</i><span>FastAPI</span><i>→</i><span>PostgreSQL</span><i>→</i><span>Reports / Alerts / Dashboard</span>
           </div>
-          <div class="architecture-note">Full system architecture used in the live dashboard and explainability workflow.</div>
+          <div class="architecture-note">Current project architecture used by the live dashboard, backend APIs, Docker Compose, and PostgreSQL data store.</div>
         </div>
         """,
         unsafe_allow_html=True,

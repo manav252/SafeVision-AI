@@ -61,6 +61,8 @@ SafeVision AI uses YOLOv8-based PPE/person detection with a Roboflow-exported pr
 
 SafeVision AI separates the live demo, detection pipeline, backend API, and database layers so the dashboard stays interactive while FastAPI handles persistence and API access.
 
+Use this as the current architecture reference for reports, presentations, and project walkthroughs.
+
 ### Overall System Architecture
 
 ```mermaid

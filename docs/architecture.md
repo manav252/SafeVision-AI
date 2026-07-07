@@ -1,159 +1,187 @@
 # SafeVision AI Architecture
 
-## Data Flow
+SafeVision AI is structured as a portfolio-ready industrial safety prototype with a React/Vite website, Streamlit live dashboard, YOLO/OpenCV detection layer, risk engine, FastAPI backend, and PostgreSQL persistence.
 
-```text
-Uploaded video
-    |
-    v
-Streamlit app.py
-    |
-    |-- first frame -> drawable canvas -> restricted-zone polygon
-    |-- gas readings + permit context -> compound-risk context
-    |-- fire event -> biometric override context
-    |
-    v
-Background processing thread
-    |
-    v
-OpenCV frame reader
-    |
-    |-- every 3rd frame
-    |-- resize to 640px width inside detector
-    v
-detector.py
-    |
-    |-- models/ppe_yolov8.pt available -> custom PPE detection
-    |-- model unavailable -> yolov8n.pt person detection + HSV PPE heuristics
-    v
-risk_engine.py
-    |
-    |-- restricted zone breach: +40
-    |-- no helmet: +30
-    |-- no vest: +25
-    |-- hazardous gas accumulation: +35
-    |-- gas accumulation + active permit: +45
-    |-- gas accumulation + equipment condition: +20
-    |-- gas accumulation + shift changeover: +15
-    |-- audit deviation + active risk: +20
-    |-- fire biometric override: +50
-    |-- cap score at 100
-    |-- generate administrator hazard messages and response states
-    v
-utils.py
-    |
-    |-- draw bounding boxes and zone overlay
-    |-- save evidence frames
-    |-- export administrator alert CSV logs
-    v
-Streamlit UI
-    |
-    |-- live detection frame
-    |-- geospatial plant heatmap
-    |-- automated response workflow
-    |-- compound risk co-pilot reasoning chain
-    |-- what-if permit simulation
-    |-- incident report draft
-    |-- administrator alert queue
+## Current System Architecture
+
+```mermaid
+flowchart TD
+    website["React/Vite Website"]
+    streamlit["Streamlit Dashboard"]
+    vision["YOLO/OpenCV Detection"]
+    risk["Risk Engine"]
+    advisor["AI Safety Advisor"]
+    api["FastAPI Backend"]
+    db["PostgreSQL"]
+    outputs["Dashboard / Reports / Alerts"]
+
+    website --> streamlit
+    streamlit --> vision
+    vision --> risk
+    risk --> advisor
+    risk --> api
+    api --> db
+    db --> outputs
 ```
 
 ## Component Responsibilities
 
 | Component | Responsibility |
 | --- | --- |
-| `app.py` | Streamlit UI, upload handling, canvas zone drawing, worker thread orchestration, live progress and log display. |
-| `detector.py` | YOLOv8 loading, Apple MPS/CPU device selection, inference, custom PPE parsing, fallback HSV PPE estimation. |
-| `risk_engine.py` | Per-frame risk scoring, gas accumulation scoring, named worker warnings, compound permit-risk detection, fire biometric override alerts, violation row generation, severity and risk-level classification. |
-| `utils.py` | Folder creation, default zone generation, canvas polygon parsing, point-in-polygon checks, drawing annotations, evidence and CSV output. |
-| `models/` | Optional custom PPE model location. Place `ppe_yolov8.pt` here. |
-| `outputs/evidence/` | Saved violation screenshots. |
-| `outputs/logs/` | Exported violation CSV files. |
-| `sample_videos/` | Optional local video clips for repeatable reviews. |
+| `src/` | React/Vite website used as the project landing page and Vercel deploy target. |
+| `app.py` | Streamlit operations dashboard for video upload, camera setup, zone drawing, monitoring, advisor UI, heatmap, and report drafting. |
+| `detector.py` | YOLOv8/Ultralytics model loading, frame inference, PPE class parsing, and fallback detection behavior. |
+| `risk_engine.py` | Weighted risk scoring and safety event generation for PPE, restricted zones, gas context, permits, equipment, shift state, and emergency context. |
+| `safevision_api_client.py` | Streamlit-to-FastAPI client that syncs newly detected violation rows into the backend. |
+| `backend/app/` | FastAPI backend with authentication, events, alerts, detection intake, reports, dashboard summary, and heatmap APIs. |
+| `backend/app/models.py` | SQLAlchemy models for users, cameras, safety events, alerts, and plant signals. |
+| PostgreSQL | Stores users, cameras, safety events, alerts, plant signals, detection metadata embedded in events, and report source data. |
+| Docker Compose | Runs PostgreSQL, FastAPI, and Streamlit together for local full-stack demos. |
 
-## PS1 Intelligence Layer
+## Detection and Persistence Flow
 
-SafeVision AI is designed around the core idea in Problem Statement 1: a plant should not only detect isolated events, it should correlate weak signals into compound risk.
+```mermaid
+flowchart TD
+    upload["Video Upload or Demo Feed"]
+    frames["Frame Extraction"]
+    yolo["YOLO/OpenCV Detection"]
+    zone["Restricted Zone Check"]
+    context["Plant Context"]
+    risk["Risk Engine"]
+    advisor["AI Safety Advisor"]
+    client["Streamlit API Client"]
+    backend["FastAPI Detection API"]
+    db["PostgreSQL"]
+    dashboard["Dashboard / Reports / Alerts"]
 
-| Signal | Data Source | Intelligence Output |
-| --- | --- | --- |
-| CCTV person detection | YOLOv8 / fallback YOLOv8n | Worker presence, PPE state, restricted-zone breach |
-| Gas accumulation | Simulated SCADA feed | CH4, CO, H2S, and O2 hazard status |
-| Permit-to-work | Sidebar scenario controls | Maintenance, hot work, or confined-space overlap |
-| Equipment maintenance | Sidebar condition controls | Maintenance, bypass, and isolation overlap risk |
-| Shift changeover | Sidebar handover controls | Supervisor acknowledgement and handover-risk signal |
-| Worker identity | Simulated registry | Named administrator warning messages |
-| Fire event | Sidebar emergency selector | Biometric access override workflow |
-| Plant layout | Streamlit heatmap | Zone A/B/C risk status for operational review |
-| Regulatory context | Built-in guidance rules | Corrective action recommendations and incident report draft |
-| What-if permit | User-selected permit candidate | Block/review/allow recommendation before approval |
-| Knowledge graph | Built-in relationship graph | Equipment-permit-risk relationships across plant signals |
+    upload --> frames
+    frames --> yolo
+    yolo --> zone
+    context --> risk
+    zone --> risk
+    risk --> advisor
+    risk --> client
+    client --> backend
+    backend --> db
+    db --> dashboard
+    advisor --> dashboard
+```
 
-## Safety Co-Pilot Agents
+## Backend API Surface
 
-SafeVision AI presents a deterministic multi-agent reasoning chain so the interface remains reliable without depending on an external LLM API.
+| API Area | Purpose |
+| --- | --- |
+| `/api/v1/auth` | Register users and issue JWT access tokens. |
+| `/api/v1/events` | Create and list safety events. |
+| `/api/v1/alerts` | List and acknowledge generated alerts. |
+| `/api/v1/detection` | Accept detection metadata, PPE state, gas readings, zone state, confidence, and calculated risk context. |
+| `/api/v1/reports` | Generate export-ready report JSON from stored events and alerts. |
+| `/api/v1/dashboard` | Return dashboard totals, active alerts, risk distribution, recent incidents, and heatmap summary. |
+| `/api/v1/heatmap` | Return zone-level heatmap data. |
+| `/api/v1/health` | Report API health. |
 
-| Agent | Input | Output |
-| --- | --- | --- |
-| Vision Agent | YOLO detections, PPE estimates, zone polygon | Worker/PPE/restricted-zone finding |
-| Gas Sensor Agent | CH4, CO, H2S, O2 telemetry | Normal, gas accumulation, compound risk, or emergency override state |
-| Permit Agent | Active permit and maintenance flag | Whether active work overlaps with hazardous conditions |
-| Equipment Agent | Maintenance and isolation status | Equipment-risk overlap with hazardous conditions |
-| Shift Agent | Shift handover and crew status | Handover-risk warning during abnormal conditions |
-| Historical Pattern Agent | Near-miss pattern memory | Pattern match for gas + active work + equipment/shift context |
-| Compliance Audit Agent | OISD, DGMS, Factory Act checklist status | Corrective action workflow recommendation |
-| Risk Orchestrator | All agent outputs plus risk score | Pause/warn/monitor recommendation |
+## Data Model Notes
 
-In production, this layer can be replaced with LangGraph, CrewAI, or another agent framework connected to governed plant data and regulatory RAG sources.
+The current implementation persists detection results as `safety_events` with detailed detection payloads in `metadata_json`. Alerts are generated from safety events. Reports are generated as export-ready JSON from stored events and alerts rather than saved as separate report files.
 
-## Detection Modes
+```mermaid
+erDiagram
+    USERS {
+        uuid id PK
+        string email
+        string full_name
+        string role
+        boolean is_active
+        datetime created_at
+    }
 
-### Custom PPE Mode
+    CAMERAS {
+        uuid id PK
+        string name
+        text stream_url
+        string zone_name
+        string status
+        json restricted_zone
+        datetime created_at
+        datetime updated_at
+    }
 
-When `models/ppe_yolov8.pt` exists, SafeVision AI uses it directly. The code expects the model to detect at least some of these labels:
+    SAFETY_EVENTS {
+        uuid id PK
+        uuid camera_id FK
+        string zone_name
+        string event_type
+        string severity
+        text message
+        int risk_score
+        string worker_id
+        text evidence_uri
+        json metadata_json
+        datetime created_at
+    }
 
-- `person`
-- `helmet`, `hardhat`, or `hard hat`
-- `no helmet`, `no hardhat`, or `no hard hat`
-- `safety vest`, `vest`, `hi-vis vest`, or `high visibility vest`
-- `no vest` or `no safety vest`
+    ALERTS {
+        uuid id PK
+        uuid event_id FK
+        string title
+        string severity
+        string status
+        string assigned_to
+        text response_notes
+        datetime created_at
+        datetime updated_at
+    }
 
-### Fallback Mode
+    PLANT_SIGNALS {
+        uuid id PK
+        string zone_name
+        float methane_lel
+        float co_ppm
+        float h2s_ppm
+        float oxygen_percent
+        string permit_type
+        string equipment_status
+        string shift_status
+        datetime created_at
+    }
 
-When the custom PPE model is unavailable, SafeVision AI uses `yolov8n.pt` for `person` detection and estimates PPE:
+    CAMERAS ||--o{ SAFETY_EVENTS : records
+    SAFETY_EVENTS ||--o| ALERTS : creates
+    PLANT_SIGNALS }o--o{ SAFETY_EVENTS : contextualizes
+```
 
-- Head region: top 30% of the person bounding box.
-- Helmet signal: bright yellow or white HSV cluster.
-- Torso region: middle 40% of the person bounding box.
-- Vest signal: high-visibility orange or green HSV cluster.
-- Missing PPE rows are marked as `estimated`.
+## Deployment View
 
-## Known Limitations
+```mermaid
+flowchart TD
+    browser["Browser"]
+    vercel["React Website on Vercel"]
 
-- HSV heuristics are sensitive to lighting, camera exposure, motion blur, and PPE color variation.
-- The fallback mode can confuse bright backgrounds with helmets or vests.
-- Gas readings are currently supplied by the app controls and can be connected to real SCADA or gas detector hardware.
-- Permit context is manually selected in the UI rather than integrated with a permit-to-work system.
-- Worker identity should be connected to approved badge, access-control, or consent-based biometric systems.
-- Biometric access control override should be connected to physical access-control systems before use on site.
-- The geospatial heatmap can be replaced with a real GIS/CAD plant layout.
-- Regulatory guidance is rule-based text, not legal advice or a certified compliance engine.
-- Custom PPE class names vary by dataset; aliases may need adjustment in `detector.py`.
-- Streamlit reruns the script frequently, so long-running processing is intentionally isolated in a background thread.
-- Evidence saving can produce many images for long videos with persistent violations.
-- The app is optimized for focused review sessions, not high-throughput production CCTV streams.
+    subgraph compose["Docker Compose"]
+        streamlit["Streamlit Dashboard"]
+        api["FastAPI Backend"]
+        db["PostgreSQL Database"]
+    end
+
+    browser --> vercel
+    browser --> streamlit
+    browser --> api
+    streamlit --> api
+    api --> db
+```
+
+## Current Limitations
+
+- Gas readings and plant signals are demo inputs unless connected to real plant systems.
+- The PPE model is a Roboflow-exported pretrained YOLOv8 model and has not been fine-tuned in this repository.
+- Formal model evaluation metrics are not claimed in this project.
+- PostgreSQL stores backend event and alert data; uploaded video files remain file-based under `outputs/uploads/` for local runs.
+- The system is a prototype and is not certified for production industrial safety decisions.
 
 ## Future Work
 
-- Train or fine-tune a dedicated PPE YOLOv8 model for the target industrial environment.
-- Connect live gas detector, SCADA historian, and permit-to-work APIs.
-- Integrate administrator notification channels such as SMS, email, Teams, or control-room alarms.
-- Integrate approved access-control systems for emergency biometric override.
-- Add time-series gas trend forecasting to predict accumulation before thresholds are crossed.
-- Replace the built-in heatmap with a real plant GIS/CAD layout and live zone telemetry.
-- Add a regulatory RAG agent that drafts incident reports against site SOPs, Factory Act references, and emergency response checklists.
-- Add object tracking to avoid repeatedly counting the same person across adjacent frames.
-- Add configurable risk weights and restricted-zone presets.
-- Add support for multiple zones with different severity levels.
-- Add video export with annotations.
-- Add role-based review workflows for safety officers.
-- Add cloud object storage for evidence retention.
+- Fine-tune and evaluate PPE detection on representative industrial datasets.
+- Connect live gas detector, SCADA, historian, and permit-to-work APIs.
+- Add cloud object storage for video/evidence retention.
+- Add Alembic migrations for production-grade database evolution.
+- Add role-based review workflows and real notification channels.
