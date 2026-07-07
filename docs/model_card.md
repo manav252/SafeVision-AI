@@ -1,70 +1,96 @@
-# SafeVision AI Model Card
+# SafeVision AI PPE Detection Model Card
 
-## Model Purpose
+## Overview
 
-SafeVision AI uses YOLO/OpenCV-based computer vision to support an industrial safety demo. The model path is intended to detect workers and PPE-related conditions in CCTV-style footage, then combine detection metadata with plant context such as gas readings and restricted-zone status.
+SafeVision AI uses a YOLOv8-based object detection model for person and PPE detection as part of a broader industrial safety platform. The model supports CCTV-style video analysis in the Streamlit dashboard and helps identify safety-relevant visual signals such as people and PPE-related conditions.
 
-## Model Type
+Detection outputs are combined with contextual plant information by the SafeVision AI risk engine. This context can include gas readings, permits, restricted zones, equipment status, shift handover notes, compliance checklist state, and emergency status. The combined signal is used to generate risk scores, safety events, alerts, dashboard summaries, and AI Safety Advisor recommendations.
 
-- Object detection model: YOLOv8-compatible `.pt` file.
-- Demo fallback: YOLOv8n person detection with OpenCV color heuristics for helmet/vest estimation when a custom PPE model is unavailable.
+## Model Information
 
-## Expected Inputs
+- **Architecture:** YOLOv8
+- **Framework:** Ultralytics
+- **Source:** Roboflow-exported pretrained PPE detection model
+- **Fine-tuning:** None in this repository
+- **Inference:** Real-time through Streamlit/OpenCV integration
 
-- Image or video frames from CCTV-style industrial footage.
-- Optional metadata: camera ID, zone name, PPE status, gas readings, restricted-zone breach state, and confidence score.
+The model was not trained from scratch for this project. The repository uses a pretrained, Roboflow-exported PPE detection model as a demo/prototype component.
 
-## Expected Outputs
+## Intended Use
 
-- Detected object class, such as `person`, `helmet`, `no helmet`, `vest`, or related PPE labels when supported by the custom model.
-- Bounding box metadata.
-- Confidence score between 0 and 1.
-- Derived PPE status and risk factors used by SafeVision AI.
+This model is intended for:
 
-## Confidence Score Meaning
+- academic demonstrations
+- software engineering projects
+- industrial safety research
+- prototype safety monitoring
 
-The confidence score represents the detector's confidence in a detected object/class for a frame. It is not a guarantee of safety compliance and should be interpreted with the surrounding context, camera quality, and model limitations.
+This model is not certified for production industrial safety, regulatory compliance, or autonomous safety enforcement.
 
-## Dataset Assumptions
+## System Role
 
-The current repository does not include a documented training dataset, train/validation split, annotation schema, or benchmark report. The included model assets should therefore be treated as demo assets unless separate training documentation is supplied.
+```text
+Camera Feed
+    |
+    v
+YOLOv8 Detection
+    |
+    v
+Risk Engine
+    |
+    v
+AI Safety Advisor
+    |
+    v
+Alerts
+    |
+    v
+Dashboard
+    |
+    v
+PostgreSQL
+```
+
+The model provides visual detection signals. SafeVision AI then combines those signals with operational context and stores resulting safety events and alerts through the FastAPI backend.
+
+## Current Capabilities
+
+- Person detection in CCTV-style frames
+- PPE detection when supported by the loaded pretrained model classes
+- Restricted-zone monitoring through application-level zone geometry
+- Risk-score generation through the SafeVision AI risk engine
+- AI Safety Advisor integration for contextual recommendations
+- Event logging through Streamlit, FastAPI, and PostgreSQL
+
+## Current Limitations
+
+- Uses a pretrained Roboflow-exported model.
+- No project-specific fine-tuning has been performed.
+- No formal benchmark has been conducted on an independent industrial dataset.
+- Performance depends on camera quality, lighting, viewing angle, motion blur, occlusion, PPE appearance, and scene layout.
+- Detection confidence should not be interpreted as a guarantee of compliance or safety.
+- The current implementation is intended for demonstrations and research only.
 
 ## Evaluation Metrics
 
-No verified real-world evaluation metrics are included in this repository. SafeVision AI does not fabricate precision, recall, mAP, or false alarm rates.
+Formal evaluation has not yet been conducted for this repository. No accuracy, precision, recall, F1-score, mAP, dataset size, training epochs, or benchmark numbers are claimed.
 
-Recommended evaluation workflow:
-
-1. Collect representative plant CCTV footage with appropriate consent and safety approvals.
-2. Annotate workers, PPE, restricted zones, and relevant safety conditions.
-3. Split data into train, validation, and holdout test sets.
-4. Report precision, recall, F1, mAP@50, mAP@50:95, false-positive rate, and false-negative rate.
-5. Evaluate separately by lighting, camera angle, PPE color, occlusion, and zone type.
-6. Document model version, dataset version, thresholds, and known failure cases.
-
-## Limitations
-
-- Demo footage may not represent real plant conditions.
-- PPE color heuristics can fail under poor lighting, motion blur, unusual PPE colors, reflective surfaces, or occlusion.
-- Person detection without tracking can count the same worker across multiple frames.
-- Detection confidence is not the same as operational safety certainty.
-- The model should not be used as the sole decision-maker for real safety enforcement.
-
-## Safety Limitations
-
-SafeVision AI is a decision-support demo. Production deployment would require site-specific validation, human review, incident-response procedures, sensor calibration, privacy review, and integration with approved safety systems.
+A future evaluation should use a documented, independent industrial PPE dataset and report metrics such as Precision, Recall, F1-score, mAP@50, and mAP@50:95. Evaluation should also break down performance by lighting condition, camera angle, PPE class, occlusion level, and site environment.
 
 ## Ethical Considerations
 
-- Avoid using worker identity features without consent, governance, and legal review.
-- Minimize retention of identifiable footage.
-- Provide human appeal/review workflows for safety warnings.
-- Monitor bias across PPE styles, body types, lighting conditions, camera positions, and work environments.
+- AI predictions should support, not replace, trained human supervisors.
+- False positives and false negatives are possible.
+- Human verification is recommended before operational decisions or incident escalation.
+- Any deployment involving worker footage should address privacy, consent, retention, access control, and local legal requirements.
+- The system should be validated for fairness across PPE styles, body types, camera positions, lighting conditions, and work environments before real-world use.
 
 ## Future Improvements
 
-- Add model versioning and a model registry.
-- Publish dataset documentation and training pipeline details.
-- Add object tracking to reduce duplicate alerts.
-- Add real evaluation metrics after a verified holdout evaluation.
-- Add model cards per model version.
+- Fine-tune on industrial PPE datasets.
+- Collect representative real plant data with appropriate consent and governance.
+- Benchmark using Precision, Recall, F1-score, and mAP.
+- Support multiple PPE classes with clear class definitions.
+- Improve robustness in low-light and high-motion conditions.
+- Explore edge deployment for site-local inference.
+- Add continuous model monitoring for drift, false positives, and false negatives.

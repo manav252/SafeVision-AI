@@ -46,6 +46,10 @@ Worker near restricted zone
 - Streamlit-to-FastAPI sync for storing demo safety events in PostgreSQL.
 - Docker and GitHub Actions support.
 
+## Model Information
+
+SafeVision AI uses YOLOv8-based PPE/person detection with a Roboflow-exported pretrained model. Detection outputs are fused with plant context through the SafeVision risk engine and surfaced through the Streamlit dashboard, FastAPI backend, and PostgreSQL event store. See the full [Model Card](docs/model_card.md) for scope, limitations, and evaluation status.
+
 ## Tech Stack
 
 **Frontend website:** React, Vite, Tailwind CSS, Framer Motion  
@@ -236,7 +240,7 @@ Downloading an incident report from the Streamlit UI is optional. Detection data
 - Quickstart: [docs/quickstart.md](docs/quickstart.md)
 - Docker guide: [docs/docker.md](docs/docker.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)
-- Model card: [docs/model_card.md](docs/model_card.md)
+- Model Card: [docs/model_card.md](docs/model_card.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - Implementation summary: [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)
 
