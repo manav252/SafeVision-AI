@@ -174,6 +174,33 @@ SELECT * FROM safety_events ORDER BY created_at DESC;
 SELECT * FROM alerts ORDER BY created_at DESC;
 ```
 
+For a cleaner terminal view, select only the most useful columns:
+
+```sql
+SELECT zone_name, event_type, severity, risk_score, created_at
+FROM safety_events
+ORDER BY created_at DESC;
+
+SELECT title, severity, status, created_at
+FROM alerts
+ORDER BY created_at DESC;
+```
+
+Example PostgreSQL verification after a Streamlit detection sync:
+
+```text
+safety_events
+zone_name        | event_type | severity | risk_score | created_at
+-----------------+------------+----------+------------+----------------------------
+Zone Sync Test 2 | detection  | LOW      | 20         | 2026-07-06 20:14:57.555885
+Zone Sync Test   | detection  | MEDIUM   | 55         | 2026-07-06 20:13:00.802386
+
+alerts
+title                                                                    | severity | status | created_at
+-------------------------------------------------------------------------+----------+--------+----------------------------
+Detection recorded for restricted_zone_breach: restricted_zone_breach... | MEDIUM   | OPEN   | 2026-07-06 20:13:00.806463
+```
+
 Exit PostgreSQL with:
 
 ```sql
