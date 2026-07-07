@@ -57,11 +57,265 @@ SafeVision AI uses YOLOv8-based PPE/person detection with a Roboflow-exported pr
 **Backend scaffold:** FastAPI, SQLAlchemy, PostgreSQL, JWT auth  
 **Deployment:** Vercel for the website, Docker/Streamlit for the live dashboard
 
-## System Architecture
+## Architecture
 
-![SafeVision AI system architecture](assets/SafeVision_AI_Architecture.png)
+SafeVision AI separates the live demo, detection pipeline, backend API, and database layers so the dashboard stays interactive while FastAPI handles persistence and API access.
 
-SafeVision AI separates the live demo, backend API, and database layers so the dashboard stays interactive while FastAPI handles persistence and API access.
+### Overall System Architecture
+
+```mermaid
+flowchart TD
+    react["React/Vite Website"]
+    streamlit["Streamlit Dashboard"]
+    detection["YOLO/OpenCV Detection"]
+    risk["Risk Engine"]
+    advisor["AI Safety Advisor"]
+    backend["FastAPI Backend"]
+    postgres["PostgreSQL"]
+    outputs["Dashboard / Reports / Alerts"]
+
+    react --> streamlit
+    streamlit --> detection
+    detection --> risk
+    risk --> advisor
+    risk --> backend
+    backend --> postgres
+    postgres --> outputs
+```
+
+### Deployment Architecture
+
+```mermaid
+flowchart TD
+    browser["Browser"]
+    vercel["React Website<br/>Vercel"]
+
+    subgraph compose["Docker Compose"]
+        streamlit["Streamlit Dashboard"]
+        api["FastAPI Backend"]
+        db["PostgreSQL Database"]
+    end
+
+    browser --> vercel
+    browser --> streamlit
+    browser --> api
+    streamlit --> api
+    api --> db
+```
+
+### Data Flow Architecture
+
+```mermaid
+flowchart TD
+    upload["Video Upload or Demo Feed"]
+    frames["Frame Processing"]
+    detections["Detection Metadata"]
+    context["Plant Context<br/>Gas, permits, zones, equipment, shift notes"]
+    risk["Risk Engine"]
+    event["Safety Event"]
+    alert["Alert"]
+    api["FastAPI API"]
+    db["PostgreSQL"]
+    reports["Reports and Dashboard Summary"]
+
+    upload --> frames
+    frames --> detections
+    context --> risk
+    detections --> risk
+    risk --> event
+    event --> alert
+    event --> api
+    alert --> api
+    api --> db
+    db --> reports
+```
+
+### Detection Pipeline
+
+```mermaid
+flowchart TD
+    video["Video Upload"]
+    frames["Frame Extraction"]
+    yolo["YOLO Detection"]
+    zone["Restricted Zone Check"]
+    risk["Risk Engine"]
+    advisor["AI Advisor"]
+    database["Database"]
+    dashboard["Dashboard"]
+
+    video --> frames
+    frames --> yolo
+    yolo --> zone
+    zone --> risk
+    risk --> advisor
+    risk --> database
+    database --> dashboard
+    advisor --> dashboard
+```
+
+### Backend API Flow
+
+```mermaid
+flowchart TD
+    client["Client<br/>Streamlit or API User"]
+    auth["Auth Router<br/>JWT"]
+    routes["FastAPI Routers"]
+    services["Risk and Advisor Services"]
+    models["SQLAlchemy Models"]
+    db["PostgreSQL"]
+    response["JSON Response"]
+
+    client --> auth
+    auth --> routes
+    client --> routes
+    routes --> services
+    services --> models
+    routes --> models
+    models --> db
+    db --> models
+    models --> response
+    services --> response
+    response --> client
+```
+
+### PostgreSQL Entity Relationship Diagram
+
+Detections are currently persisted as `safety_events` with detection metadata in `metadata_json`. Reports are generated from stored events and alerts rather than stored as separate report files.
+
+```mermaid
+erDiagram
+    USERS {
+        uuid id PK
+        string email
+        string full_name
+        string role
+        boolean is_active
+        datetime created_at
+    }
+
+    CAMERAS {
+        uuid id PK
+        string name
+        text stream_url
+        string zone_name
+        string status
+        json restricted_zone
+        datetime created_at
+        datetime updated_at
+    }
+
+    SAFETY_EVENTS {
+        uuid id PK
+        uuid camera_id FK
+        string zone_name
+        string event_type
+        string severity
+        text message
+        int risk_score
+        string worker_id
+        text evidence_uri
+        json metadata_json
+        datetime created_at
+    }
+
+    ALERTS {
+        uuid id PK
+        uuid event_id FK
+        string title
+        string severity
+        string status
+        string assigned_to
+        text response_notes
+        datetime created_at
+        datetime updated_at
+    }
+
+    PLANT_SIGNALS {
+        uuid id PK
+        string zone_name
+        float methane_lel
+        float co_ppm
+        float h2s_ppm
+        float oxygen_percent
+        string permit_type
+        string equipment_status
+        string shift_status
+        datetime created_at
+    }
+
+    DETECTION_API {
+        string detection_type
+        float confidence_score
+        json ppe_status
+        json gas_readings
+        json zone_status
+        json metadata
+    }
+
+    REPORTS_API {
+        datetime generated_at
+        json events_summary
+        json alerts_summary
+        json recent_events
+        json open_alerts
+    }
+
+    CAMERAS ||--o{ SAFETY_EVENTS : records
+    SAFETY_EVENTS ||--o| ALERTS : creates
+    DETECTION_API ||--|| SAFETY_EVENTS : persists_as
+    SAFETY_EVENTS ||--o{ REPORTS_API : summarizes
+    ALERTS ||--o{ REPORTS_API : summarizes
+    PLANT_SIGNALS }o--o{ SAFETY_EVENTS : contextualizes
+```
+
+### Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Client as Streamlit or API Client
+    participant Auth as FastAPI Auth Router
+    participant DB as PostgreSQL
+    participant API as Protected API Routes
+
+    User->>Client: Enter email and password
+    Client->>Auth: POST /api/v1/auth/login
+    Auth->>DB: Look up user and hashed password
+    DB-->>Auth: User record
+    Auth-->>Client: JWT access token
+    Client->>API: Request with Bearer token
+    API->>Auth: Validate token
+    Auth-->>API: Authenticated user
+    API-->>Client: Protected response
+```
+
+### Alert Generation Flow
+
+```mermaid
+flowchart TD
+    detection["Detection Result"]
+    context["Plant Context"]
+    risk["Risk Engine"]
+    score["Calculated Risk Score"]
+    event["Create Safety Event"]
+    threshold{"Alert Threshold Met?"}
+    alert["Create Alert"]
+    db["PostgreSQL"]
+    dashboard["Dashboard Alert Feed"]
+    reports["Reports API"]
+
+    detection --> risk
+    context --> risk
+    risk --> score
+    score --> event
+    event --> threshold
+    threshold -- "Yes" --> alert
+    threshold -- "No" --> db
+    alert --> db
+    event --> db
+    db --> dashboard
+    db --> reports
+```
 
 ## Repository Structure
 
@@ -240,6 +494,7 @@ Downloading an incident report from the Streamlit UI is optional. Detection data
 - Quickstart: [docs/quickstart.md](docs/quickstart.md)
 - Docker guide: [docs/docker.md](docs/docker.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)
+- Architecture diagrams: [docs/diagrams](docs/diagrams)
 - Model Card: [docs/model_card.md](docs/model_card.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - Implementation summary: [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)
