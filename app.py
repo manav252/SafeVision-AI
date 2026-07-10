@@ -79,6 +79,18 @@ def app_now() -> datetime:
     return datetime.now(APP_TIMEZONE)
 
 
+def render_png_asset(image_path: Path, fallback_message: str) -> None:
+    """Render local PNG assets reliably across local runs and Streamlit Cloud."""
+    if not image_path.exists():
+        st.info(fallback_message)
+        return
+    try:
+        st.image(Image.open(image_path), use_column_width=True)
+    except Exception as exc:
+        st.warning(f"Unable to load image asset: {image_path.name}")
+        st.caption(str(exc))
+
+
 def app_time() -> str:
     return app_now().strftime("%H:%M:%S IST")
 
@@ -579,8 +591,10 @@ def show_alert_explanation_dialog(event: dict, gas_context: dict | None) -> None
 
 @st.dialog("SafeVision AI Pipeline")
 def show_architecture_dialog() -> None:
-    if ARCHITECTURE_DIAGRAM_PATH.exists():
-        st.image(str(ARCHITECTURE_DIAGRAM_PATH), use_column_width=True)
+    render_png_asset(
+        ARCHITECTURE_DIAGRAM_PATH,
+        "Architecture diagram will appear here after the PNG is available.",
+    )
     st.markdown(
         """
         <style>
@@ -4892,10 +4906,10 @@ def render_landing_page() -> None:
         """,
         unsafe_allow_html=True,
     )
-    if ARCHITECTURE_DIAGRAM_PATH.exists():
-        st.image(str(ARCHITECTURE_DIAGRAM_PATH), use_column_width=True)
-    else:
-        st.info("Architecture diagram will appear here after the PNG is available.")
+    render_png_asset(
+        ARCHITECTURE_DIAGRAM_PATH,
+        "Architecture diagram will appear here after the PNG is available.",
+    )
     st.markdown(
         """
         <div id="demo" class="landing-section">
