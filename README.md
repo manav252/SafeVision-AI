@@ -321,6 +321,17 @@ flowchart TD
     db --> reports
 ```
 
+## Screenshots
+
+| View | Screenshot |
+| --- | --- |
+| React/Vite landing page | ![SafeVision React landing page](screenshots/react-landing-page.png) |
+| Streamlit live dashboard | ![SafeVision Streamlit dashboard](screenshots/streamlit-live-dashboard.png) |
+| FastAPI Swagger docs | ![SafeVision FastAPI Swagger docs](screenshots/swagger-api-docs.png) |
+| PostgreSQL verification | ![PostgreSQL query output from Docker Compose](screenshots/postgresql-docker-query.png) |
+
+The project also includes a short demo video asset at [assets/safevision_demo_video.mp4](assets/safevision_demo_video.mp4).
+
 ## Repository Structure
 
 ```text
@@ -399,6 +410,34 @@ Open:
 - Streamlit dashboard: `http://localhost:8501`
 - FastAPI backend: `http://localhost:8000`
 - API docs: `http://localhost:8000/docs`
+
+## How To Demo
+
+1. Start the full stack.
+
+   ```bash
+   docker compose up --build
+   ```
+
+2. Open the Streamlit dashboard at `http://localhost:8501`.
+3. Click **Launch Live Dashboard**.
+4. Upload a CCTV clip or switch to the industrial CCTV demo mode.
+5. Assign a plant zone and choose plant context such as gas + permit risk.
+6. Start monitoring and review the AI Safety Advisor, risk score, recent events, heatmap, and report tabs.
+7. Open Swagger at `http://localhost:8000/docs` to inspect backend APIs.
+8. Verify persisted events in PostgreSQL.
+
+   ```bash
+   docker compose exec postgres psql -U safevision -d safevision
+   ```
+
+   ```sql
+   SELECT zone_name, event_type, severity, risk_score, created_at
+   FROM safety_events
+   ORDER BY created_at DESC;
+   ```
+
+See the full [demo script](docs/demo_script.md) for a presentation-ready walkthrough.
 
 ## Data Storage and PostgreSQL
 
@@ -495,6 +534,8 @@ Downloading an incident report from the Streamlit UI is optional. Detection data
 ## API and Documentation
 
 - API examples: [docs/api.md](docs/api.md)
+- Sample API flow: [docs/api_flow.md](docs/api_flow.md)
+- Demo script: [docs/demo_script.md](docs/demo_script.md)
 - Quickstart: [docs/quickstart.md](docs/quickstart.md)
 - Docker guide: [docs/docker.md](docs/docker.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)

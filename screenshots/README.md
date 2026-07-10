@@ -1,12 +1,20 @@
-# Screenshots and Demo Media
+# Screenshots
 
-Add portfolio screenshots here before sharing the repository widely:
+This folder contains portfolio screenshots used by the main README.
 
-- Landing page screenshot.
-- Streamlit dashboard overview screenshot.
-- Detection/risk event screenshot.
-- Heatmap screenshot.
-- Incident report screenshot.
-- Short GIF demo of the upload-to-alert flow.
+Included:
 
-The repository already includes a demo video at `assets/safevision_demo_video.mp4`.
+- `react-landing-page.png`
+- `streamlit-dashboard.png`
+- `streamlit-live-dashboard.png`
+- `swagger-api-docs.png`
+- `postgresql-docker-query.png`
+- `architecture-backend.png`
+
+The repository also includes a demo video at `assets/safevision_demo_video.mp4`.
+
+Future capture targets:
+
+- detection event after uploading a CCTV clip
+- heatmap with active incidents
+- incident report tab after monitoring
